@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/**)",
+      "Bash(javap -c -p -constants org/springframework/core/io/support/SpringFactoriesLoader.class)"
+    ]
+  }
+}

@@ -1,0 +1,23 @@
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: system-ui, sans-serif;
+}
+
+.app-header a {
+  font-weight: 600;
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+
+.app-header a:hover {
+  color: #38bdf8;
+}
+
+.volver-a-seleccion {
+  display: inline-block;
+  margin-bottom: 1rem;
+}
