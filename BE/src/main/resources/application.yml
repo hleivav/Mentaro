@@ -43,3 +43,9 @@ app:
     modelo-pasada-b-escalado: ${DEEPSEEK_MODELO_PASADA_B_ESCALADO:deepseek-v4-pro}
     timeout-conexion: ${DEEPSEEK_TIMEOUT_CONEXION:PT10S}
     timeout-lectura: ${DEEPSEEK_TIMEOUT_LECTURA:PT5M}
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:}
+    base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
+    modelo: ${ANTHROPIC_MODELO:claude-haiku-4-5-20251001}
+    timeout-conexion: ${ANTHROPIC_TIMEOUT_CONEXION:PT10S}
+    timeout-lectura: ${ANTHROPIC_TIMEOUT_LECTURA:PT1M}
