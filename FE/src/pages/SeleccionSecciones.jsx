@@ -14,24 +14,54 @@ function hijosDe(seccionId, secciones) {
   return secciones.filter((seccion) => seccion.padre_id === seccionId)
 }
 
-// Una seccion seleccionada arrastra todo su subarbol (ver diseño del
-// endpoint /mapa) - asi el usuario puede marcar un capitulo entero sin
-// tener que tildar cada sub-seccion a mano.
-function unidadesEnSubarbol(seccionId, secciones, nivelesIncluidos) {
-  const seccion = secciones.find((s) => s.id === seccionId)
-  if (!seccion) return []
-  const propias = seccion.unidades.filter((u) => nivelesIncluidos.includes(u.nivel_importancia))
-  const deHijos = hijosDe(seccionId, secciones).flatMap((hijo) =>
-    unidadesEnSubarbol(hijo.id, secciones, nivelesIncluidos)
-  )
-  return [...propias, ...deHijos]
+function subarbolIds(seccionId, secciones) {
+  return [seccionId, ...hijosDe(seccionId, secciones).flatMap((hijo) => subarbolIds(hijo.id, secciones))]
 }
 
-function unidadIdsSeleccionados(seccionesSeleccionadas, secciones, profundidad) {
-  const nivelesIncluidos = NIVELES_INCLUIDOS_POR_PROFUNDIDAD[profundidad]
+// Una seccion seleccionada arrastra todo su subarbol (ver diseño del
+// endpoint /mapa) - asi el usuario puede marcar un capitulo entero sin
+// tener que tildar cada sub-seccion a mano. Ademas, cada seccion en ese
+// subarbol puede depender de otras (campo depende_de, derivado por el
+// backend de las unidades individuales) - esas se auto-incluyen tambien,
+// para que el usuario nunca entre a un concepto que asume algo que no
+// selecciono. cerrarDependencias hace ese cierre transitivo (A depende de
+// B, B depende de C -> las tres quedan incluidas) y recuerda, para cada
+// seccion auto-incluida, el titulo de la seccion que el usuario marco
+// directamente y que la trajo (para mostrar "incluida por X" en la UI).
+function cerrarDependencias(seleccionadas, secciones) {
+  const porId = new Map(secciones.map((s) => [s.id, s]))
+  const origenDirectoPorSeccion = new Map()
+  for (const seccionId of seleccionadas) {
+    const directa = porId.get(seccionId)
+    for (const id of subarbolIds(seccionId, secciones)) {
+      if (!origenDirectoPorSeccion.has(id)) origenDirectoPorSeccion.set(id, directa?.titulo)
+    }
+  }
+
+  const base = new Set(origenDirectoPorSeccion.keys())
+  const porDependencia = new Map()
+  const pendientes = [...base]
+  while (pendientes.length > 0) {
+    const actual = pendientes.pop()
+    const seccionActual = porId.get(actual)
+    for (const dependeId of seccionActual?.depende_de ?? []) {
+      if (base.has(dependeId) || porDependencia.has(dependeId)) continue
+      porDependencia.set(dependeId, origenDirectoPorSeccion.get(actual) ?? porDependencia.get(actual))
+      pendientes.push(dependeId)
+    }
+  }
+
+  return { base, porDependencia }
+}
+
+function unidadIdsDeSecciones(seccionIds, secciones, nivelesIncluidos) {
   const ids = new Set()
-  for (const seccionId of seccionesSeleccionadas) {
-    unidadesEnSubarbol(seccionId, secciones, nivelesIncluidos).forEach((u) => ids.add(u.id))
+  for (const seccionId of seccionIds) {
+    const seccion = secciones.find((s) => s.id === seccionId)
+    if (!seccion) continue
+    seccion.unidades
+      .filter((u) => nivelesIncluidos.includes(u.nivel_importancia))
+      .forEach((u) => ids.add(u.id))
   }
   return [...ids]
 }
@@ -46,10 +76,16 @@ export function SeleccionSecciones() {
 
   const secciones = mapa.data?.secciones ?? SECCIONES_VACIO
 
-  const unidadIds = useMemo(
-    () => unidadIdsSeleccionados(seleccionadas, secciones, profundidad),
-    [seleccionadas, secciones, profundidad]
+  const { base: seccionesBase, porDependencia: seccionesPorDependencia } = useMemo(
+    () => cerrarDependencias(seleccionadas, secciones),
+    [seleccionadas, secciones]
   )
+
+  const unidadIds = useMemo(() => {
+    const nivelesIncluidos = NIVELES_INCLUIDOS_POR_PROFUNDIDAD[profundidad]
+    const todasIncluidas = [...seccionesBase, ...seccionesPorDependencia.keys()]
+    return unidadIdsDeSecciones(todasIncluidas, secciones, nivelesIncluidos)
+  }, [seccionesBase, seccionesPorDependencia, secciones, profundidad])
   const minutosEstimados = Math.round(unidadIds.length * MINUTOS_POR_UNIDAD)
 
   const generar = useMutation({
@@ -95,7 +131,12 @@ export function SeleccionSecciones() {
     <main className="seleccion-secciones">
       <p className="etiqueta">Paso 2 de 2</p>
       <h1>Elige qué jugar</h1>
-      <ArbolSecciones secciones={secciones} seleccionadas={seleccionadas} onToggle={alternarSeccion} />
+      <ArbolSecciones
+        secciones={secciones}
+        seleccionadas={seleccionadas}
+        onToggle={alternarSeccion}
+        incluidasPorDependencia={seccionesPorDependencia}
+      />
       <SelectorProfundidad valor={profundidad} onChange={setProfundidad} />
 
       <div className="tarjeta seleccion-secciones__resumen">

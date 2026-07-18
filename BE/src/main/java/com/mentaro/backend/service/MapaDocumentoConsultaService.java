@@ -13,9 +13,11 @@ import com.mentaro.backend.repository.SeccionRepository;
 import com.mentaro.backend.repository.UnidadRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -55,28 +57,51 @@ public class MapaDocumentoConsultaService {
                             + documento.getEstado() + ")");
         }
 
+        List<Unidad> unidades = unidadRepository.findByDocumento_Id(documentoId);
+
+        // Necesario para resolver a que seccion pertenece cada id referenciado en
+        // depende_de - incluye unidades no declarativas porque una dependencia
+        // podria apuntar a cualquier tipo.
+        Map<UUID, UUID> seccionPorUnidad = new HashMap<>();
+        for (Unidad unidad : unidades) {
+            seccionPorUnidad.put(unidad.getId(), unidad.getSeccion().getId());
+        }
+
         Map<UUID, List<UnidadMapaDTO>> unidadesPorSeccion = new HashMap<>();
-        for (Unidad unidad : unidadRepository.findByDocumento_Id(documentoId)) {
+        Map<UUID, Set<UUID>> dependeDePorSeccion = new HashMap<>();
+        for (Unidad unidad : unidades) {
             if (unidad.getTipoContenido() != TipoContenido.DECLARATIVO) {
                 continue;
             }
+            UUID seccionId = unidad.getSeccion().getId();
             unidadesPorSeccion
-                    .computeIfAbsent(unidad.getSeccion().getId(), k -> new ArrayList<>())
+                    .computeIfAbsent(seccionId, k -> new ArrayList<>())
                     .add(new UnidadMapaDTO(unidad.getId(), unidad.getNivelImportancia().name().toLowerCase(Locale.ROOT)));
+
+            for (UUID dependenciaUnidadId : unidad.getDependeDe()) {
+                UUID seccionDependida = seccionPorUnidad.get(dependenciaUnidadId);
+                if (seccionDependida != null && !seccionDependida.equals(seccionId)) {
+                    dependeDePorSeccion.computeIfAbsent(seccionId, k -> new LinkedHashSet<>()).add(seccionDependida);
+                }
+            }
         }
 
         return new MapaDocumentoResponse(
                 seccionRepository.findByDocumento_Id(documentoId).stream()
-                        .map(seccion -> aDto(seccion, unidadesPorSeccion))
+                        .map(seccion -> aDto(seccion, unidadesPorSeccion, dependeDePorSeccion))
                         .toList());
     }
 
-    private SeccionMapaDTO aDto(Seccion seccion, Map<UUID, List<UnidadMapaDTO>> unidadesPorSeccion) {
+    private SeccionMapaDTO aDto(
+            Seccion seccion,
+            Map<UUID, List<UnidadMapaDTO>> unidadesPorSeccion,
+            Map<UUID, Set<UUID>> dependeDePorSeccion) {
         return new SeccionMapaDTO(
                 seccion.getId(),
                 seccion.getTitulo(),
                 seccion.getPadre() != null ? seccion.getPadre().getId() : null,
                 seccion.getResumen(),
-                unidadesPorSeccion.getOrDefault(seccion.getId(), List.of()));
+                unidadesPorSeccion.getOrDefault(seccion.getId(), List.of()),
+                List.copyOf(dependeDePorSeccion.getOrDefault(seccion.getId(), Set.of())));
     }
 }

@@ -76,6 +76,33 @@ class MapaDocumentoConsultaServiceTests {
     }
 
     @Test
+    void derivaDependenciasDeSeccionDesdeElDependeDeDeSusUnidades() {
+        inicializar(EstadoDocumento.MAPEADO);
+        Seccion introduccion = seccionRepository.save(new Seccion(documento, null, "Introduccion", "resumen"));
+        Seccion avanzado = seccionRepository.save(new Seccion(documento, null, "Avanzado", "resumen"));
+
+        Unidad base = unidadRepository.save(
+                new Unidad(documento, introduccion, "Base", TipoContenido.DECLARATIVO, NivelImportancia.ESENCIAL));
+        Unidad otraDeLaMismaSeccion = unidadRepository.save(
+                new Unidad(documento, introduccion, "Otra", TipoContenido.DECLARATIVO, NivelImportancia.ESENCIAL));
+        Unidad avanzada = new Unidad(documento, avanzado, "Avanzada", TipoContenido.DECLARATIVO, NivelImportancia.ESENCIAL);
+        // Depende de una unidad de su propia seccion (no debe aparecer como
+        // dependencia entre secciones) y de una de "Introduccion" (si debe).
+        avanzada.setDependeDe(new UUID[] {otraDeLaMismaSeccion.getId(), base.getId()});
+        avanzada = unidadRepository.save(avanzada);
+
+        MapaDocumentoResponse mapa = mapaDocumentoConsultaService.obtenerMapa(usuario, documento.getId());
+
+        SeccionMapaDTO avanzadoDto =
+                mapa.secciones().stream().filter(s -> s.id().equals(avanzado.getId())).findFirst().orElseThrow();
+        assertThat(avanzadoDto.dependeDe()).containsExactly(introduccion.getId());
+
+        SeccionMapaDTO introduccionDto =
+                mapa.secciones().stream().filter(s -> s.id().equals(introduccion.getId())).findFirst().orElseThrow();
+        assertThat(introduccionDto.dependeDe()).isEmpty();
+    }
+
+    @Test
     void rechazaDocumentosQueTodaviaNoTienenEstructuraMapeada() {
         inicializar(EstadoDocumento.PROCESANDO);
 

@@ -180,6 +180,9 @@ main {
 
 /* ---------- Seleccion de secciones ---------- */
 
+/* Tabla de contenidos, no arbol de habilidades de videojuego: tipografia
+   display para los titulos, indentacion via el mismo borde fino que ya
+   usa el Camino de Tinta como lenguaje visual de "conector". */
 .arbol-secciones {
   list-style: none;
   padding-left: 0;
@@ -192,17 +195,45 @@ main {
   margin-left: 0.4rem;
 }
 
+.arbol-secciones__nodo {
+  padding: 0.15rem 0;
+}
+
 .arbol-secciones label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   padding: 0.35rem 0;
+  cursor: pointer;
+}
+
+.arbol-secciones__titulo {
+  font-family: var(--fuente-display);
+  font-size: 1.05rem;
 }
 
 .arbol-secciones input[type='checkbox'] {
   width: 18px;
   height: 18px;
   accent-color: var(--vino);
+  flex-shrink: 0;
+}
+
+/* Seccion auto-incluida por ser prerrequisito de otra: se distingue con
+   el mismo trazo fino de tinta que el Camino de Tinta, en vez de una
+   metafora nueva sin relacion con el resto del sistema. */
+.arbol-secciones__nodo--dependencia {
+  border-left: 2px solid var(--oro);
+  padding-left: 0.6rem;
+  margin-left: -0.6rem;
+}
+
+.arbol-secciones__nodo--dependencia > label {
+  color: var(--tinta-suave);
+}
+
+.arbol-secciones__nota {
+  margin: -0.1rem 0 0.35rem 2.2rem;
 }
 
 .selector-profundidad {
