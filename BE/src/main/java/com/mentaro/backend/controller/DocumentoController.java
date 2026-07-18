@@ -12,6 +12,7 @@ import com.mentaro.backend.service.GeneracionDocumentoService;
 import com.mentaro.backend.service.IngestaDocumentoService;
 import com.mentaro.backend.service.MapaDocumentoConsultaService;
 import com.mentaro.backend.service.ProgresoDocumentoService;
+import com.mentaro.backend.service.ProgresoReinicioService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -39,6 +40,7 @@ public class DocumentoController {
     private final MapaDocumentoConsultaService mapaDocumentoConsultaService;
     private final ProgresoDocumentoService progresoDocumentoService;
     private final DocumentoEliminacionService documentoEliminacionService;
+    private final ProgresoReinicioService progresoReinicioService;
 
     public DocumentoController(
             IngestaDocumentoService ingestaDocumentoService,
@@ -46,13 +48,15 @@ public class DocumentoController {
             GeneracionDocumentoService generacionDocumentoService,
             MapaDocumentoConsultaService mapaDocumentoConsultaService,
             ProgresoDocumentoService progresoDocumentoService,
-            DocumentoEliminacionService documentoEliminacionService) {
+            DocumentoEliminacionService documentoEliminacionService,
+            ProgresoReinicioService progresoReinicioService) {
         this.ingestaDocumentoService = ingestaDocumentoService;
         this.documentoConsultaService = documentoConsultaService;
         this.generacionDocumentoService = generacionDocumentoService;
         this.mapaDocumentoConsultaService = mapaDocumentoConsultaService;
         this.progresoDocumentoService = progresoDocumentoService;
         this.documentoEliminacionService = documentoEliminacionService;
+        this.progresoReinicioService = progresoReinicioService;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -95,5 +99,11 @@ public class DocumentoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void eliminar(@AuthenticationPrincipal Usuario usuario, @PathVariable UUID id) {
         documentoEliminacionService.eliminar(usuario, id);
+    }
+
+    @DeleteMapping("/{id}/progreso")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reiniciarProgreso(@AuthenticationPrincipal Usuario usuario, @PathVariable UUID id) {
+        progresoReinicioService.reiniciar(usuario, id);
     }
 }

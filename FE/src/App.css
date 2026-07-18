@@ -31,9 +31,19 @@ main {
   height: 28px;
 }
 
+.app-header__acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .app-header button {
   padding: 0.5em 1em;
   font-size: 0.9rem;
+}
+
+.app-header__sonido {
+  white-space: nowrap;
 }
 
 .volver-a-seleccion {
@@ -370,21 +380,119 @@ main {
   }
 }
 
+/* Tercera señal de la regla dura (color + icono + texto) - nunca solo la
+   decoracion de arriba. */
+.pregunta-opcion-multiple__retro-texto {
+  display: block;
+  margin-top: 0.35rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.alternativa--correcta .pregunta-opcion-multiple__retro-texto {
+  color: var(--musgo);
+}
+
+.alternativa--incorrecta .pregunta-opcion-multiple__retro-texto {
+  color: var(--vino);
+}
+
+.juego__mensaje-segundo-fallo {
+  margin-bottom: 1.5rem;
+}
+
+.juego__mensaje-segundo-fallo p {
+  margin-bottom: 1rem;
+}
+
+.juego {
+  position: relative;
+}
+
 .juego--completo {
   text-align: center;
 }
 
-.juego__seccion-actual {
+/* Aviso de "concepto nuevo" vs "repaso" al cargar la pregunta - un
+   destello breve, nunca un elemento que compita con el contenido (ver
+   principios de movimiento: solo el Camino de Tinta y la
+   retroalimentacion de respuesta se ganan movimiento; este es una
+   variante minima de ese segundo momento, no un tercero nuevo). */
+.destello {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  animation: destello-fundido 0.5s ease-out;
+}
+
+.destello--nuevo {
+  background: radial-gradient(circle at 50% 0%, rgba(139, 58, 58, 0.16), transparent 70%);
+}
+
+.destello--repaso {
+  background: radial-gradient(circle at 50% 0%, rgba(184, 146, 90, 0.2), transparent 70%);
+}
+
+@keyframes destello-fundido {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* El Camino de Tinta durante el juego representa solo la seccion actual
+   (ver correccion del sistema de diseño) - nunca es la unica fuente de
+   la cifra de avance, siempre va acompañado del respaldo textual. */
+.camino-de-tinta-envoltura {
+  margin-bottom: 1.5rem;
+}
+
+.camino-de-tinta-envoltura__cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.camino-de-tinta-envoltura__repaso {
+  font-family: var(--fuente-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--oro);
+  white-space: nowrap;
+}
+
+.camino-de-tinta-envoltura__respaldo {
   text-align: center;
-  margin: -1.2rem 0 1.5rem;
+  color: var(--desvanecido);
+  font-size: 0.85rem;
+  margin: 0.1rem 0 0;
 }
 
 /* ---------- Indice iluminado ---------- */
 
+.indice-iluminado-envoltura {
+  margin: 1.5rem 0;
+}
+
+.indice-iluminado__resumen {
+  margin-bottom: 0.5rem;
+}
+
+.indice-iluminado__reiniciar {
+  display: block;
+  margin-top: 1.25rem;
+}
+
 .indice-iluminado {
   list-style: none;
   padding-left: 0;
-  margin: 1.5rem 0;
+  margin: 0;
   font-family: var(--fuente-display);
 }
 
@@ -442,4 +550,11 @@ main {
   align-self: center;
   color: var(--desvanecido);
   font-size: 0.85rem;
+  cursor: help;
+}
+
+.tira-sellos__explicacion {
+  flex-basis: 100%;
+  margin: 0.2rem 0 0;
+  color: var(--desvanecido);
 }

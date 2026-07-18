@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ import tools.jackson.databind.ObjectMapper;
 @Service
 public class PasadaAService {
 
+    private static final Logger log = LoggerFactory.getLogger(PasadaAService.class);
     private static final double TEMPERATURA = 0.3;
 
     private static final String PROMPT_SISTEMA = """
@@ -63,6 +66,20 @@ public class PasadaAService {
                 - importante: enriquece la comprensión, no es indispensable
                 - detalle: dato secundario, anécdota, profundización opcional
             - "depende_de": ids de otras unidades que asume conocidas
+
+            COBERTURA MÍNIMA POR SECCIÓN
+            Por cada nodo hoja, apuntá a identificar al menos ~4 unidades de
+            nivel "esencial" cuando el contenido lo sostenga. Es un error común
+            subdividir de menos y dejar una sección con una sola unidad esencial
+            aunque el texto cubra varias ideas distintas — por ejemplo, una
+            sección de "resumen" o "conclusión" casi siempre tiene más de un
+            mensaje separable (recapitulación de lo aprendido, implicancias o
+            próximos pasos, llamado a la acción), y cada uno amerita su propia
+            unidad. Esta cobertura mínima NO aplica si la sección es
+            genuinamente breve o de un solo punto: nunca inventes, repitas ni
+            fragmentes artificialmente un concepto único solo para completar un
+            número — extraé más unidades solo cuando el texto fuente realmente
+            sostiene esa granularidad.
 
             NO generes explicaciones ni preguntas en esta pasada. Es solo el
             esqueleto — título y clasificación, nada más.
@@ -124,16 +141,33 @@ public class PasadaAService {
 
         Map<String, Unidad> unidadesPorIdIa = new HashMap<>();
         for (MapaDocumento.UnidadEsqueleto u : mapa.unidades()) {
-            Unidad unidad = new Unidad(
-                    documento,
-                    seccionesPorIdIa.get(u.seccionId()),
-                    u.titulo(),
-                    TipoContenido.valueOf(u.tipoContenido().toUpperCase()),
-                    NivelImportancia.valueOf(u.nivelImportancia().toUpperCase()));
-            unidadesPorIdIa.put(u.id(), unidadRepository.save(unidad));
+            Seccion seccion = seccionesPorIdIa.get(u.seccionId());
+            if (seccion == null) {
+                log.warn("Unidad esqueleto '{}' descartada: seccion_id '{}' no coincide con ninguna seccion mapeada",
+                        u.titulo(), u.seccionId());
+                continue;
+            }
+            // Un solo valor fuera de catalogo en un modelo de ~1000 unidades no
+            // deberia tirar abajo todo el mapeo del documento (misma logica de
+            // tolerancia a fallos que ya aplica la Pasada B por unidad) - se
+            // descarta esa unidad puntual con un warning y se sigue con el resto.
+            try {
+                Unidad unidad = new Unidad(
+                        documento,
+                        seccion,
+                        u.titulo(),
+                        TipoContenido.valueOf(u.tipoContenido().toUpperCase()),
+                        NivelImportancia.valueOf(u.nivelImportancia().toUpperCase()));
+                unidadesPorIdIa.put(u.id(), unidadRepository.save(unidad));
+            } catch (IllegalArgumentException | NullPointerException e) {
+                log.warn(
+                        "Unidad esqueleto '{}' descartada: tipo_contenido='{}' o nivel_importancia='{}' invalido: {}",
+                        u.titulo(), u.tipoContenido(), u.nivelImportancia(), e.getMessage());
+            }
         }
         for (MapaDocumento.UnidadEsqueleto u : mapa.unidades()) {
-            if (u.dependeDe() == null || u.dependeDe().isEmpty()) {
+            Unidad unidad = unidadesPorIdIa.get(u.id());
+            if (unidad == null || u.dependeDe() == null || u.dependeDe().isEmpty()) {
                 continue;
             }
             UUID[] dependencias = u.dependeDe().stream()
@@ -141,7 +175,7 @@ public class PasadaAService {
                     .filter(Objects::nonNull)
                     .map(Unidad::getId)
                     .toArray(UUID[]::new);
-            unidadesPorIdIa.get(u.id()).setDependeDe(dependencias);
+            unidad.setDependeDe(dependencias);
         }
 
         documento.setEstado(EstadoDocumento.MAPEADO);

@@ -15,4 +15,10 @@ public interface ProgresoUsuarioRepository extends JpaRepository<ProgresoUsuario
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM ProgresoUsuario p WHERE p.documento.id = :documentoId")
     int deleteByDocumento_Id(UUID documentoId);
+
+    // Para ProgresoReinicioService: reiniciar el progreso de UN usuario en UN
+    // documento, sin tocar el de otros usuarios que jueguen el mismo documento.
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ProgresoUsuario p WHERE p.usuario.id = :usuarioId AND p.documento.id = :documentoId")
+    int deleteByUsuario_IdAndDocumento_Id(UUID usuarioId, UUID documentoId);
 }

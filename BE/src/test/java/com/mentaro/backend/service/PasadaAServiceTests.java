@@ -87,6 +87,44 @@ class PasadaAServiceTests {
     }
 
     @Test
+    void descartaUnaUnidadConValorInvalidoSinTumbarElRestoDelMapeo() {
+        // Reproduce el fallo real visto en produccion: DeepSeek devolvio
+        // "detalle" (un valor valido de nivel_importancia) en el campo
+        // tipo_contenido, que no tiene ese valor en su catalogo - antes esto
+        // hacia fallar TODA la Pasada A (documento entero a ERROR, unidades
+        // validas incluidas), pese a que "u-2" es perfectamente valida.
+        String respuestaConValorInvalido = """
+                {
+                  "estructura": [
+                    {"id": "sec-1", "titulo": "Libro I", "padre_id": null, "resumen": "Introduccion"}
+                  ],
+                  "unidades": [
+                    {"id": "u-1", "titulo": "Unidad rota", "seccion_id": "sec-1", "tipo_contenido": "detalle", "nivel_importancia": "esencial", "depende_de": []},
+                    {"id": "u-2", "titulo": "Unidad valida", "seccion_id": "sec-1", "tipo_contenido": "declarativo", "nivel_importancia": "esencial", "depende_de": ["u-1"]}
+                  ]
+                }
+                """;
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(respuestaConValorInvalido);
+
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-pasada-a-invalida", "invalida@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.PROCESANDO));
+
+        pasadaAService.ejecutar(documento, "texto fuente del documento");
+
+        List<Unidad> unidades = unidadRepository.findByDocumento_Id(documento.getId());
+        assertThat(unidades).singleElement().satisfies(u -> {
+            assertThat(u.getTitulo()).isEqualTo("Unidad valida");
+            // La dependencia hacia la unidad descartada tambien se descarta
+            // en silencio, no rompe el guardado de la unidad valida.
+            assertThat(u.getDependeDe()).isEmpty();
+        });
+
+        Documento documentoActualizado = documentoRepository.findById(documento.getId()).orElseThrow();
+        assertThat(documentoActualizado.getEstado()).isEqualTo(EstadoDocumento.MAPEADO);
+    }
+
+    @Test
     void rechazaDocumentosQueNoEstanEnProcesando() {
         Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-pasada-a-2", "otro@example.com"));
         Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.LISTO));

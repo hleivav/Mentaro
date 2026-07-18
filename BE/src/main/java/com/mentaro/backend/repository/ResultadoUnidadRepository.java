@@ -21,4 +21,10 @@ public interface ResultadoUnidadRepository extends JpaRepository<ResultadoUnidad
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM ResultadoUnidad r WHERE r.unidad.documento.id = :documentoId")
     int deleteByUnidad_Documento_Id(UUID documentoId);
+
+    // Para ProgresoReinicioService: reiniciar el progreso de UN usuario en UN
+    // documento, sin tocar el de otros usuarios que jueguen el mismo documento.
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ResultadoUnidad r WHERE r.usuario.id = :usuarioId AND r.unidad.documento.id = :documentoId")
+    int deleteByUsuario_IdAndUnidad_Documento_Id(UUID usuarioId, UUID documentoId);
 }
