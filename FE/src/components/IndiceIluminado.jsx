@@ -5,12 +5,15 @@ function hijosDe(seccionId, secciones) {
   return secciones.filter((seccion) => (seccion.padre_id ?? null) === seccionId)
 }
 
+// Tres estados, no dos: sin esto, una seccion recien seleccionada (0
+// dominadas todavia) se veia identica a una que el usuario nunca eligio -
+// "0 de 2 iluminadas" no daba ninguna pista de cuales eran esas 2 entre
+// todo el documento (ver correccion del sistema de diseño).
 function estadoDeIluminacion(seccionId, progresoPorSeccion) {
   const datos = progresoPorSeccion.get(seccionId)
-  if (!datos || datos.unidades_totales === 0) return 'sin-datos'
-  if (datos.unidades_dominadas === 0) return 'sin-iluminar'
+  if (!datos || datos.unidades_totales === 0) return 'sin-seleccionar'
   if (datos.unidades_dominadas >= datos.unidades_totales) return 'iluminada'
-  return 'iluminandose'
+  return 'en-seleccion'
 }
 
 function Nodo({ seccion, secciones, progresoPorSeccion }) {

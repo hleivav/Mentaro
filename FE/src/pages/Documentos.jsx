@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useDocumentos } from '../hooks/useDocumentos'
+import { IndicadorCarga } from '../components/IndicadorCarga'
 
 const ACCION_POR_ESTADO = {
   mapeado: (id) => ({ to: `/documentos/${id}/seleccion`, etiqueta: 'Elegir qué jugar' }),
@@ -14,7 +15,7 @@ function EstadoDocumento({ documento }) {
   if (accion) {
     return <Link to={accion.to}>{accion.etiqueta}</Link>
   }
-  if (documento.estado === 'procesando') return <span className="etiqueta">Procesando…</span>
+  if (documento.estado === 'procesando') return <IndicadorCarga texto="Procesando…" />
   if (documento.estado === 'error') return <span role="alert">Hubo un error al procesar este documento</span>
   return <span className="etiqueta">{documento.estado}</span>
 }
