@@ -1,5 +1,22 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+
+  /* Tokens de color - navy + vino + oro sobre pergamino. Deliberadamente
+     nada de terracota/naranja ni negro con acento neon (ver sistema de
+     diseño): ese territorio se lee como "hecho por IA" de inmediato. */
+  --tinta: #1a2a4a;
+  --tinta-suave: #3d4f6e;
+  --pergamino: #f1e8d4;
+  --pergamino-hondo: #e8dcc0;
+  --vino: #8b3a3a;
+  --oro: #b8925a;
+  --musgo: #4a6741;
+  --musgo-suave: #edf2ea;
+  --desvanecido: #7a6f5d;
+
+  --radio: 11px;
+  --fuente-display: 'Fraunces', Georgia, serif;
+  --fuente-ui: 'Public Sans', system-ui, sans-serif;
 }
 
 * {
@@ -8,4 +25,121 @@
 
 body {
   margin: 0;
+  background: var(--pergamino);
+  color: var(--tinta);
+  font-family: var(--fuente-ui);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--fuente-display);
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 0.5em;
+}
+
+h1 {
+  font-weight: 900;
+}
+
+p {
+  margin: 0 0 1em;
+}
+
+/* Etiquetas de seccion/metadata: la misma sans en versaltas con tracking
+   amplio - mismo tratamiento que ya se uso en los documentos de marca. */
+.etiqueta {
+  font-family: var(--fuente-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--desvanecido);
+}
+
+button {
+  font-family: var(--fuente-ui);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--pergamino);
+  background: var(--tinta);
+  border: none;
+  border-radius: var(--radio);
+  padding: 0.7em 1.4em;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+button:hover:not(:disabled) {
+  box-shadow: 0 2px 0 rgba(26, 42, 74, 0.15);
+}
+
+/* Efecto de "sello de cera haciendo contacto" - se hunde 1-2px al pulsar,
+   nunca glow ni bounce (ver principios de movimiento). */
+button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+button:disabled {
+  background: var(--pergamino-hondo);
+  color: var(--desvanecido);
+  cursor: not-allowed;
+}
+
+button.secundario {
+  background: transparent;
+  color: var(--tinta);
+  border: 1.5px solid var(--tinta-suave);
+}
+
+button.secundario:disabled {
+  border-color: var(--pergamino-hondo);
+}
+
+input[type='email'],
+input[type='password'],
+input[type='text'],
+input[type='file'] {
+  font-family: var(--fuente-ui);
+  font-size: 1rem;
+  color: var(--tinta);
+  background: #fff;
+  border: 1.5px solid var(--pergamino-hondo);
+  border-radius: var(--radio);
+  padding: 0.65em 0.9em;
+}
+
+input:focus-visible {
+  outline: 2px solid var(--vino);
+  outline-offset: 1px;
+}
+
+.tarjeta {
+  background: var(--pergamino-hondo);
+  border-radius: var(--radio);
+  padding: 1.5rem;
+}
+
+a {
+  color: var(--vino);
+}
+
+[role='alert'] {
+  color: var(--vino);
+}
+
+/* El Camino de Tinta y la retroalimentacion de respuesta son los unicos
+   dos momentos que se ganan movimiento (ver principios de movimiento) -
+   con reduced-motion, ambos pasan a transiciones instantaneas de estado. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

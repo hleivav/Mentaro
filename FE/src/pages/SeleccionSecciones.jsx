@@ -93,17 +93,19 @@ export function SeleccionSecciones() {
 
   return (
     <main className="seleccion-secciones">
+      <p className="etiqueta">Paso 2 de 2</p>
       <h1>Elige qué jugar</h1>
       <ArbolSecciones secciones={secciones} seleccionadas={seleccionadas} onToggle={alternarSeccion} />
       <SelectorProfundidad valor={profundidad} onChange={setProfundidad} />
 
-      <p>
-        {unidadIds.length} unidades seleccionadas — ~{minutosEstimados} min
-      </p>
-
-      <button type="button" disabled={unidadIds.length === 0 || generar.isPending} onClick={() => generar.mutate()}>
-        Empezar
-      </button>
+      <div className="tarjeta seleccion-secciones__resumen">
+        <p>
+          {unidadIds.length} unidades seleccionadas — ~{minutosEstimados} min
+        </p>
+        <button type="button" disabled={unidadIds.length === 0 || generar.isPending} onClick={() => generar.mutate()}>
+          Empezar
+        </button>
+      </div>
 
       {generar.isError && !errorTextoExpirado && <p role="alert">No se pudo iniciar la generación.</p>}
     </main>

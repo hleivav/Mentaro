@@ -1,23 +1,414 @@
+/* ---------- Layout general ---------- */
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
 .app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  font-family: system-ui, sans-serif;
+  padding: 0.85rem 1.5rem;
+  background: var(--pergamino-hondo);
+  border-bottom: 2px solid var(--tinta);
 }
 
 .app-header a {
-  font-weight: 600;
-  color: #7dd3fc;
-  text-decoration: underline;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--fuente-display);
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--tinta);
+  text-decoration: none;
 }
 
-.app-header a:hover {
-  color: #38bdf8;
+.app-header__icono {
+  width: 28px;
+  height: 28px;
+}
+
+.app-header button {
+  padding: 0.5em 1em;
+  font-size: 0.9rem;
 }
 
 .volver-a-seleccion {
   display: inline-block;
+  margin-bottom: 1.5rem;
+  color: var(--vino);
+  font-weight: 600;
+}
+
+/* ---------- El Camino de Tinta ---------- */
+
+.camino-de-tinta {
+  overflow: visible;
+  /* El svg solo tiene viewBox, sin width/height propios - sin esto,
+     algunos navegadores lo colapsan a 0px de alto en vez de calcularlo
+     a partir del viewBox (408x60), y la linea queda invisible aunque
+     "este" en el DOM. */
+  aspect-ratio: 408 / 60;
+  height: auto;
+}
+
+.camino-de-tinta--barra {
+  width: 100%;
+  max-width: 340px;
+  display: block;
+  margin: 0 auto 2rem;
+}
+
+.camino-de-tinta--completa {
+  width: 100%;
+  max-width: 480px;
+  display: block;
+  margin: 2rem auto;
+}
+
+.camino-de-tinta__fondo {
+  fill: none;
+  stroke: var(--pergamino-hondo);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.camino-de-tinta__trazo {
+  fill: none;
+  stroke: var(--vino);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke-dashoffset 0.6s ease;
+}
+
+.camino-de-tinta__nodo {
+  fill: var(--pergamino);
+  stroke: var(--pergamino-hondo);
+  stroke-width: 2;
+  transition: fill 0.4s ease, stroke 0.4s ease;
+}
+
+.camino-de-tinta__nodo--alcanzado {
+  fill: var(--oro);
+  stroke: var(--vino);
+}
+
+.camino-de-tinta__lazo-refuerzo {
+  fill: none;
+  stroke: var(--oro);
+  stroke-width: 2.5;
+  stroke-dasharray: 3 4;
+  animation: girar-lazo 1.4s linear infinite;
+}
+
+@keyframes girar-lazo {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+/* ---------- Login ---------- */
+
+.login {
+  max-width: 380px;
+  margin: 3rem auto;
+  text-align: center;
+}
+
+.login h1 {
+  font-size: 2.2rem;
+}
+
+.login form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.login form button[type='submit'] {
+  margin-top: 0.25rem;
+}
+
+/* ---------- Subir ---------- */
+
+.subir form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+/* ---------- Documentos ---------- */
+
+.documentos ul {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.documentos li {
+  background: var(--pergamino-hondo);
+  border-radius: var(--radio);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.documentos__eliminar {
+  padding: 0.4em 0.9em;
+  font-size: 0.85rem;
+}
+
+.documentos li strong {
+  font-family: var(--fuente-display);
+  font-weight: 600;
+}
+
+/* ---------- Seleccion de secciones ---------- */
+
+.arbol-secciones {
+  list-style: none;
+  padding-left: 0;
+}
+
+.arbol-secciones ul {
+  list-style: none;
+  padding-left: 1.4rem;
+  border-left: 2px solid var(--pergamino-hondo);
+  margin-left: 0.4rem;
+}
+
+.arbol-secciones label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.arbol-secciones input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--vino);
+}
+
+.selector-profundidad {
+  border: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selector-profundidad legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-family: var(--fuente-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--desvanecido);
+}
+
+.selector-profundidad label {
+  display: block;
+  border: 1.5px solid var(--pergamino-hondo);
+  border-radius: var(--radio);
+  padding: 0.6em 1em;
+  cursor: pointer;
+}
+
+.selector-profundidad label:has(input:checked) {
+  border-color: var(--vino);
+  background: var(--pergamino-hondo);
+}
+
+.selector-profundidad input[type='radio'] {
+  accent-color: var(--vino);
+  margin-right: 0.4rem;
+}
+
+.seleccion-secciones__resumen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.seleccion-secciones__resumen p {
+  margin: 0;
+  color: var(--tinta-suave);
+}
+
+/* ---------- Juego ---------- */
+
+.explicacion-unidad {
+  background: var(--pergamino-hondo);
+  border-radius: var(--radio);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.explicacion-unidad h2 {
+  font-size: 1.4rem;
+}
+
+.pregunta-opcion-multiple ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.pregunta-opcion-multiple button {
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  color: var(--tinta);
+  border: 1.5px solid var(--pergamino-hondo);
+}
+
+.pregunta-opcion-multiple button:hover:not(:disabled) {
+  border-color: var(--oro);
+  box-shadow: none;
+}
+
+.pregunta-opcion-multiple button:active:not(:disabled) {
+  border-color: var(--vino);
+}
+
+/* Retroalimentacion de respuesta - uno de los dos unicos momentos que se
+   ganan movimiento (ver principios de movimiento). Acierto: un trazo de
+   tinta se dibuja bajo la alternativa (nunca un icono de check
+   generico). Fallo: un sello sutil, nunca shake ni rojo saturado. */
+.pregunta-opcion-multiple button.alternativa--correcta {
+  border-color: var(--musgo);
+  background: var(--musgo-suave);
+  position: relative;
+}
+
+.pregunta-opcion-multiple button.alternativa--correcta::after {
+  content: '';
+  position: absolute;
+  left: 1em;
+  right: 1em;
+  bottom: 6px;
+  height: 2px;
+  background: var(--musgo);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: trazo-acierto 0.4s ease forwards;
+}
+
+@keyframes trazo-acierto {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.pregunta-opcion-multiple button.alternativa--incorrecta {
+  border-color: var(--vino);
+  animation: sello-fallo 0.3s ease;
+}
+
+@keyframes sello-fallo {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.juego--completo {
+  text-align: center;
+}
+
+.juego__seccion-actual {
+  text-align: center;
+  margin: -1.2rem 0 1.5rem;
+}
+
+/* ---------- Indice iluminado ---------- */
+
+.indice-iluminado {
+  list-style: none;
+  padding-left: 0;
+  margin: 1.5rem 0;
+  font-family: var(--fuente-display);
+}
+
+.indice-iluminado ul {
+  list-style: none;
+  padding-left: 1.2rem;
+}
+
+.indice-iluminado__nodo {
+  padding: 0.3rem 0 0.3rem 0.6rem;
+  border-left: 3px solid transparent;
+  transition: border-color 0.4s ease, color 0.4s ease;
+}
+
+.indice-iluminado__nodo--sin-iluminar,
+.indice-iluminado__nodo--sin-datos {
+  color: var(--desvanecido);
+  border-left-color: var(--pergamino-hondo);
+}
+
+.indice-iluminado__nodo--iluminandose {
+  color: var(--tinta-suave);
+  border-left-color: var(--vino);
+}
+
+.indice-iluminado__nodo--iluminada {
+  color: var(--tinta);
+  font-weight: 700;
+  border-left-color: var(--oro);
+}
+
+.indice-iluminado__nodo--iluminada > span::after {
+  content: ' ✦';
+  color: var(--oro);
+}
+
+/* ---------- Tira de sellos ---------- */
+
+.tira-sellos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 1rem 0;
+}
+
+.tira-sellos__sello {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--vino);
+  border: 2px solid var(--oro);
+}
+
+.tira-sellos__contador {
+  align-self: center;
+  color: var(--desvanecido);
+  font-size: 0.85rem;
 }

@@ -6,6 +6,8 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
 public interface SecuenciaTableroRepository extends JpaRepository<SecuenciaTablero, UUID> {
 
@@ -20,4 +22,9 @@ public interface SecuenciaTableroRepository extends JpaRepository<SecuenciaTable
     // la primera vez que se construye la secuencia de un documento, o al
     // "profundizar" una seccion ya jugable (se agrega despues de lo ultimo).
     Optional<SecuenciaTablero> findFirstByDocumento_IdOrderByPosicionDesc(UUID documentoId);
+
+    // Borrado en un solo DELETE para DocumentoEliminacionService.
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM SecuenciaTablero s WHERE s.documento.id = :documentoId")
+    int deleteByDocumento_Id(UUID documentoId);
 }

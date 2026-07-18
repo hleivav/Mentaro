@@ -36,33 +36,36 @@ export function Subir() {
 
   return (
     <main className="subir">
+      <p className="etiqueta">Nuevo documento</p>
       <h1>Sube un documento</h1>
-      <form onSubmit={manejarEnvio}>
-        <input
-          type="file"
-          accept=".txt,.pdf"
-          onChange={(evento) => setArchivo(evento.target.files[0])}
-          disabled={Boolean(documentoId)}
-          required
-        />
-        <input
-          type="text"
-          placeholder="Título (opcional)"
-          value={titulo}
-          onChange={(evento) => setTitulo(evento.target.value)}
-          disabled={Boolean(documentoId)}
-        />
-        <button type="submit" disabled={!archivo || subir.isPending || Boolean(documentoId)}>
-          Subir
-        </button>
-      </form>
+      <div className="tarjeta">
+        <form onSubmit={manejarEnvio}>
+          <input
+            type="file"
+            accept=".txt,.pdf"
+            onChange={(evento) => setArchivo(evento.target.files[0])}
+            disabled={Boolean(documentoId)}
+            required
+          />
+          <input
+            type="text"
+            placeholder="Título (opcional)"
+            value={titulo}
+            onChange={(evento) => setTitulo(evento.target.value)}
+            disabled={Boolean(documentoId)}
+          />
+          <button type="submit" disabled={!archivo || subir.isPending || Boolean(documentoId)}>
+            Subir
+          </button>
+        </form>
+      </div>
 
       {documentoId && estado === 'procesando' && <p>Procesando documento…</p>}
 
       {estado === 'error' && (
         <>
           <p role="alert">Hubo un problema procesando el documento. Intenta subirlo de nuevo.</p>
-          <button type="button" onClick={() => setDocumentoId(null)}>
+          <button type="button" className="secundario" onClick={() => setDocumentoId(null)}>
             Volver a intentar
           </button>
         </>

@@ -92,6 +92,12 @@ public class PasadaBService {
             6. Varía la posición de "correcta_index" entre unidades — no pongas
                la respuesta correcta siempre en la misma posición (ej. siempre 0),
                o alguien puede acertar por patrón de posición sin entender nada.
+            7. Antes de fijar "correcta_index" en cada pregunta, releé
+               "explicacion_corta" y verificá que la alternativa en ese índice
+               sea la que esa explicación realmente respalda — no otra que
+               suene plausible pero no esté sostenida por el texto. Si dudás
+               entre dos alternativas, elegí la que se derive más directamente
+               de la explicación, nunca la más elaborada o interesante.
 
             FORMATO DE SALIDA
             Responde con un objeto JSON de la forma {"unidades": [...]} — un

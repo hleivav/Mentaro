@@ -42,7 +42,9 @@ export function Login() {
 
   return (
     <main className="login">
+      <img src="/icons/icono-192x192.png" alt="" width="72" height="72" />
       <h1>Mentaro</h1>
+      <p className="etiqueta">Aprende cualquier documento, jugando</p>
       <form onSubmit={manejarEnvio}>
         <input
           type="email"
@@ -59,11 +61,11 @@ export function Login() {
           required
         />
         <button type="submit">Iniciar sesión</button>
-        <button type="button" onClick={manejarRegistro}>
+        <button type="button" className="secundario" onClick={manejarRegistro}>
           Crear cuenta
         </button>
       </form>
-      <button type="button" onClick={manejarGoogle}>
+      <button type="button" className="secundario" onClick={manejarGoogle}>
         Continuar con Google
       </button>
       {error && <p role="alert">{error}</p>}

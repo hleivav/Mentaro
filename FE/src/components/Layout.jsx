@@ -7,8 +7,11 @@ export function Layout() {
   return (
     <>
       <header className="app-header">
-        <Link to="/documentos">Mentaro</Link>
-        <button type="button" onClick={cerrarSesion}>
+        <Link to="/documentos">
+          <img className="app-header__icono" src="/icons/icono-192x192.png" alt="" />
+          Mentaro
+        </Link>
+        <button type="button" className="secundario" onClick={cerrarSesion}>
           Cerrar sesión
         </button>
       </header>

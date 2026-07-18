@@ -21,8 +21,11 @@ export function useSesion(documentoId) {
 
   // Se llama explicitamente, no en cada respuesta: cuando la respuesta
   // trae "reintentar", hay que seguir mostrando el MISMO elemento (con la
-  // explicacion alternativa) en vez de traer el siguiente.
+  // explicacion alternativa) en vez de traer el siguiente. Tambien
+  // invalida el progreso real (Camino de Tinta + indice iluminado), que
+  // cambia en el mismo momento que el puntero de sesion.
   function avanzar() {
+    queryClient.invalidateQueries({ queryKey: ['progreso', documentoId] })
     return queryClient.invalidateQueries({ queryKey })
   }
 
