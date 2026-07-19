@@ -32,7 +32,8 @@ class JsonSnakeCaseTests {
                 {
                   "unidad_id": "%s",
                   "tipo_elemento": "nueva",
-                  "respuesta_index": 2,
+                  "tipo_pregunta": "opcion_multiple",
+                  "respuesta": 2,
                   "intento_numero": 1
                 }
                 """.formatted(unidadId);
@@ -41,7 +42,8 @@ class JsonSnakeCaseTests {
 
         assertThat(request.unidadId()).isEqualTo(unidadId);
         assertThat(request.tipoElemento()).isEqualTo("nueva");
-        assertThat(request.respuestaIndex()).isEqualTo(2);
+        assertThat(request.tipoPregunta()).isEqualTo("opcion_multiple");
+        assertThat(request.respuesta()).isEqualTo(2);
         assertThat(request.intentoNumero()).isEqualTo(1);
     }
 

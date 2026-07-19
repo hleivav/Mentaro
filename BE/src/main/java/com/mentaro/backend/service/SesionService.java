@@ -1,7 +1,6 @@
 package com.mentaro.backend.service;
 
 import com.mentaro.backend.dto.ElementoSesionDTO;
-import com.mentaro.backend.dto.PreguntaDTO;
 import com.mentaro.backend.dto.ResponderRequest;
 import com.mentaro.backend.dto.ResponderResponse;
 import com.mentaro.backend.dto.SesionResponse;
@@ -19,7 +18,11 @@ import com.mentaro.backend.repository.ProgresoUsuarioRepository;
 import com.mentaro.backend.repository.ResultadoUnidadRepository;
 import com.mentaro.backend.repository.SecuenciaTableroRepository;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,6 +46,13 @@ public class SesionService {
     private static final int GAP_CORTO_MIN = 1;
     private static final int GAP_CORTO_MAX = 2;
     private static final int PASO_POSICION = 100;
+
+    // Campo de cada tipo de pregunta que revela la respuesta correcta -
+    // nunca se manda al frontend (ver aDto/redactar), solo se lee para
+    // validar en el backend (ver esRespuestaCorrecta).
+    private static final String CAMPO_RESPUESTA_OPCION_MULTIPLE = "correcta_index";
+    private static final String CAMPO_RESPUESTA_ORDENAR = "orden_correcto";
+    private static final String CAMPO_RESPUESTA_EMPAREJAR = "pares_correctos";
 
     private final DocumentoRepository documentoRepository;
     private final SecuenciaTableroRepository secuenciaTableroRepository;
@@ -103,7 +113,8 @@ public class SesionService {
         }
 
         Unidad unidad = actual.getUnidad();
-        boolean correcta = parsearPregunta(preguntaDe(unidad, tipoRequest)).correctaIndex() == request.respuestaIndex();
+        Map<String, Object> pregunta = parsearPregunta(preguntaDe(unidad, tipoRequest));
+        boolean correcta = esRespuestaCorrecta(pregunta, request.tipoPregunta(), request.respuesta());
 
         ResultadoUnidad resultado = resultadoUnidadRepository
                 .findByUsuario_IdAndUnidad_Id(usuario.getId(), unidad.getId())
@@ -223,23 +234,92 @@ public class SesionService {
     private ElementoSesionDTO aDto(SecuenciaTablero elemento) {
         Unidad unidad = elemento.getUnidad();
         boolean esNueva = elemento.getTipoElemento() == TipoElemento.NUEVA;
-        PreguntaAlmacenada pregunta = parsearPregunta(preguntaDe(unidad, elemento.getTipoElemento()));
+        Map<String, Object> pregunta = parsearPregunta(preguntaDe(unidad, elemento.getTipoElemento()));
 
         return new ElementoSesionDTO(
                 unidad.getId(),
                 elemento.getTipoElemento().name().toLowerCase(),
                 esNueva ? unidad.getTitulo() : null,
                 esNueva ? unidad.getExplicacionCorta() : null,
-                new PreguntaDTO(pregunta.enunciado(), pregunta.alternativas()));
+                redactar(pregunta));
     }
 
     private String preguntaDe(Unidad unidad, TipoElemento tipo) {
         return tipo == TipoElemento.NUEVA ? unidad.getPreguntaReconocimiento() : unidad.getPreguntaRefuerzo();
     }
 
-    private PreguntaAlmacenada parsearPregunta(String json) {
+    // Nunca mandar al frontend el campo que revela la respuesta correcta -
+    // cual sea ese campo depende del tipo de pregunta.
+    private Map<String, Object> redactar(Map<String, Object> pregunta) {
+        Map<String, Object> redactada = new LinkedHashMap<>(pregunta);
+        redactada.remove(campoRespuestaCorrecta(tipoDe(pregunta)));
+        return redactada;
+    }
+
+    // Valida la respuesta segun el tipo de pregunta almacenado - la forma
+    // de "respuesta" varia (indice, arreglo de indices, arreglo de pares),
+    // ver ResponderRequest. Un tipoPregunta que no coincide con el
+    // realmente activo en la sesion es un 409, no un 400: el cliente esta
+    // desincronizado con el estado del servidor, no mando datos invalidos
+    // per se.
+    private boolean esRespuestaCorrecta(Map<String, Object> pregunta, String tipoPregunta, Object respuesta) {
+        String tipoAlmacenado = tipoDe(pregunta);
+        if (!tipoAlmacenado.equals(tipoPregunta)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "tipo_pregunta no coincide con el que esta activo en la sesion");
+        }
         try {
-            return objectMapper.readValue(json, PreguntaAlmacenada.class);
+            return switch (tipoAlmacenado) {
+                case "opcion_multiple" -> aEntero(pregunta.get(CAMPO_RESPUESTA_OPCION_MULTIPLE)) == aEntero(respuesta);
+                case "ordenar" -> aListaDeEnteros(pregunta.get(CAMPO_RESPUESTA_ORDENAR)).equals(aListaDeEnteros(respuesta));
+                case "emparejar" -> aConjuntoDePares(pregunta.get(CAMPO_RESPUESTA_EMPAREJAR)).equals(aConjuntoDePares(respuesta));
+                default -> throw new IllegalStateException("Tipo de pregunta almacenado desconocido: " + tipoAlmacenado);
+            };
+        } catch (ClassCastException | NullPointerException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Formato de 'respuesta' invalido para tipo_pregunta=" + tipoPregunta);
+        }
+    }
+
+    private String tipoDe(Map<String, Object> pregunta) {
+        String tipo = (String) pregunta.get("tipo");
+        if (tipo == null) {
+            throw new IllegalStateException("La pregunta almacenada no tiene campo 'tipo'");
+        }
+        return tipo;
+    }
+
+    private String campoRespuestaCorrecta(String tipo) {
+        return switch (tipo) {
+            case "opcion_multiple" -> CAMPO_RESPUESTA_OPCION_MULTIPLE;
+            case "ordenar" -> CAMPO_RESPUESTA_ORDENAR;
+            case "emparejar" -> CAMPO_RESPUESTA_EMPAREJAR;
+            default -> throw new IllegalStateException("Tipo de pregunta almacenado desconocido: " + tipo);
+        };
+    }
+
+    private int aEntero(Object valor) {
+        return ((Number) valor).intValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Integer> aListaDeEnteros(Object valor) {
+        return ((List<Object>) valor).stream().map(this::aEntero).toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Set<List<Integer>> aConjuntoDePares(Object valor) {
+        Set<List<Integer>> conjunto = new HashSet<>();
+        for (Object par : (List<Object>) valor) {
+            conjunto.add(aListaDeEnteros(par));
+        }
+        return conjunto;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parsearPregunta(String json) {
+        try {
+            return objectMapper.readValue(json, Map.class);
         } catch (JacksonException e) {
             throw new IllegalStateException("No se pudo parsear la pregunta almacenada: " + e.getMessage(), e);
         }

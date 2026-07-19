@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -34,6 +35,13 @@ import tools.jackson.databind.ObjectMapper;
 // con deepseek-v4-pro (el modelo mas caro se reserva para el porcentaje
 // chico que ya fallo una vez). Al final construye secuencia_tablero (ver
 // SecuenciaTableroService) para lo que efectivamente quedo jugable.
+//
+// Mecanicas de pregunta - habilitadas hasta ahora en el prompt:
+// opcion_multiple, ordenar, emparejar (ver "mecanicas de respuesta mas
+// alla de opcion multiple"). Clasificar/completar/tocar_error quedan
+// para rondas siguientes - agregarlas al prompt sin tener el resto del
+// pipeline (validacion, endpoint, frontend) listo generaria contenido
+// que el juego no podria presentar.
 @Service
 public class PasadaBService {
 
@@ -43,9 +51,10 @@ public class PasadaBService {
     // Frases de 6+ palabras consecutivas iguales al texto fuente cuentan como
     // calce literal. Menos que eso casi siempre es solo un termino tecnico o
     // nombre propio sin sinonimo razonable (ej. "Rocinante", "Dulcinea del
-    // Toboso", "Aldonza Lorenzo") - la propia regla 2 del prompt lo exime, y
-    // un chequeo de substring completo (sin este piso) los marcaba invalidos
-    // por error, disparando escalados a un modelo mas caro sin necesidad.
+    // Toboso", "Aldonza Lorenzo") - la propia regla de calce literal lo
+    // exime, y un chequeo de substring completo (sin este piso) los marcaba
+    // invalidos por error, disparando escalados a un modelo mas caro sin
+    // necesidad.
     private static final int PALABRAS_MINIMAS_PARA_CALCE_LITERAL = 6;
     // El documento solo dice "largo similar" sin dar un numero. En una
     // corrida real, las 8 unidades que escalaron fallaron TODAS por este
@@ -56,6 +65,13 @@ public class PasadaBService {
     private static final int RATIO_MAXIMO_LARGO_ALTERNATIVAS = 3;
     private static final List<String> FRASES_PROHIBIDAS = List.of(
             "todas las anteriores", "ninguna de las anteriores");
+    private static final int ORDENAR_EMPAREJAR_MINIMO = 3;
+    private static final int ORDENAR_EMPAREJAR_MAXIMO = 5;
+    // Pistas textuales de orden que "ordenar" no debe traer en sus items -
+    // el orden se prueba por contenido, no porque el texto ya lo delate.
+    private static final List<String> PISTAS_DE_ORDEN = List.of(
+            "primero", "segundo", "tercero", "cuarto", "quinto",
+            "despues", "después", "luego", "finalmente", "por ultimo", "por último");
 
     private static final String PROMPT_SISTEMA = """
             Eres un diseñador instruccional. Recibirás una lista de unidades de
@@ -70,45 +86,96 @@ public class PasadaBService {
             - "explicacion_alternativa": la misma idea desde otro ángulo o
               analogía — no una reformulación cosmética. Se usa cuando el usuario
               falla la pregunta la primera vez.
-            - "pregunta_reconocimiento": objeto con "enunciado" (string),
-              "alternativas" (arreglo de 4 strings), y "correcta_index" (entero,
-              0-3, la posición de la alternativa correcta dentro del arreglo).
-              Apunta a la idea CENTRAL de la unidad. Para primera exposición.
-            - "pregunta_refuerzo": mismo formato que "pregunta_reconocimiento"
-              pero con "alternativas" de 3 strings y "correcta_index" entre 0-2.
-              Prueba la misma idea en un ejemplo o contexto DISTINTO al usado en
-              la explicación. Para cuando la unidad reaparece más adelante
-              (refuerzo espaciado).
+            - "pregunta_reconocimiento" y "pregunta_refuerzo": preguntas para
+              la primera exposición y para el repaso espaciado, respectivamente.
+              Cada una puede usar una de tres mecánicas distintas — ver
+              "CÓMO ELEGIR LA MECÁNICA" y "ESQUEMAS POR MECÁNICA" abajo. Por
+              defecto usá la MISMA mecánica en "pregunta_refuerzo" que en
+              "pregunta_reconocimiento" (es la misma idea vista de nuevo) y
+              cambiá el ejemplo o contexto concreto, no la mecánica — salvo
+              que el contenido puntual de esa unidad realmente pida otra cosa.
 
-            REGLAS DURAS (no negociables):
-            1. Los distractores deben ser errores plausibles — algo que alguien
-               confundiría de verdad. Nunca opciones absurdas de relleno.
-            2. Ninguna alternativa puede copiar una frase literal del texto fuente
-               salvo términos técnicos sin sinónimo razonable.
-            3. Todas las alternativas de una misma pregunta deben tener largo
-               similar.
-            4. Prohibido "todas las anteriores" / "ninguna de las anteriores".
-            5. Prohibidas las dobles negaciones en el enunciado.
-            6. Varía la posición de "correcta_index" entre unidades — no pongas
-               la respuesta correcta siempre en la misma posición (ej. siempre 0),
-               o alguien puede acertar por patrón de posición sin entender nada.
-            7. Antes de fijar "correcta_index" en cada pregunta, releé
-               "explicacion_corta" y verificá que la alternativa en ese índice
-               sea la que esa explicación realmente respalda — no otra que
-               suene plausible pero no esté sostenida por el texto. Si dudás
-               entre dos alternativas, elegí la que se derive más directamente
-               de la explicación, nunca la más elaborada o interesante.
-            8. El enunciado y TODAS las alternativas (no solo la correcta) de
-               "pregunta_reconocimiento" tienen que poder evaluarse con la
-               información que "explicacion_corta" ya dio — nunca metas un
-               dato, cifra o detalle del texto fuente que la explicación no
-               haya mencionado, aunque sea real y esté en el texto fuente. El
-               usuario solo estudió la explicación corta; si la pregunta
-               exige algo que no está ahí, no hay forma de responder por
-               conocimiento genuino, solo por descarte o suerte. Mismo
-               criterio para "pregunta_refuerzo": puede ilustrar la idea con
-               un ejemplo distinto, pero la idea que evalúa tiene que ser la
-               misma que ya cubrió "explicacion_corta", no un dato adicional.
+            CÓMO ELEGIR LA MECÁNICA (en este orden de prioridad)
+            1. Si el contenido describe una secuencia clara de pasos o
+               eventos → "ordenar".
+            2. Si presenta varias relaciones o pares (concepto↔definición,
+               persona↔idea, causa↔efecto) → "emparejar".
+            3. Si nada de lo anterior calza con naturalidad →
+               "opcion_multiple" (respaldo seguro).
+            No elijas mecánica por rotar variedad — elegí la que el contenido
+            de esa unidad puntual sugiera con más naturalidad. Es preferible
+            tener varias unidades seguidas en "opcion_multiple" que forzar
+            una mecánica que no calza.
+
+            ESQUEMAS POR MECÁNICA
+            Cada pregunta es un objeto con "tipo" (uno de los tres valores de
+            abajo) más los campos específicos de ese tipo. Sin texto ni
+            claves fuera de lo especificado.
+
+            "opcion_multiple":
+            {"tipo": "opcion_multiple", "enunciado": "...",
+             "alternativas": ["...", "...", "...", "..."], "correcta_index": 2}
+            pregunta_reconocimiento: 4 alternativas, correcta_index 0-3.
+            pregunta_refuerzo: 3 alternativas, correcta_index 0-2.
+
+            "ordenar":
+            {"tipo": "ordenar", "enunciado": "Ordena los pasos del proceso",
+             "items": ["Se derrite el hielo polar", "Sube el nivel del mar", "..."],
+             "orden_correcto": [1, 0, 2]}
+            "items" se muestra DESORDENADO al usuario (nunca en el orden
+            real); "orden_correcto" son los índices de "items" en la
+            secuencia real. Entre 3 y 5 items.
+
+            "emparejar":
+            {"tipo": "emparejar", "enunciado": "Une cada filósofo con su idea",
+             "columna_izquierda": ["Sócrates", "Descartes", "Kant"],
+             "columna_derecha_desordenada": ["Pienso, luego existo", "Mayéutica", "Imperativo categórico"],
+             "pares_correctos": [[0,1],[1,0],[2,2]]}
+            "pares_correctos" son índices [izquierda, derecha_desordenada].
+            Entre 3 y 5 pares.
+
+            REGLAS GENERALES (las tres mecánicas)
+            A. Prohibidas las dobles negaciones en el enunciado.
+            B. Todo lo evaluable (alternativas, items, columnas — según la
+               mecánica) tiene que poder resolverse con la información que
+               "explicacion_corta" ya dio — nunca un dato, cifra o detalle
+               del texto fuente que la explicación no haya mencionado,
+               aunque sea real y esté en el texto fuente. El usuario solo
+               estudió la explicación corta; si la pregunta exige algo que
+               no está ahí, no hay forma de responder por conocimiento
+               genuino, solo por descarte o suerte.
+
+            REGLAS PARA "opcion_multiple"
+            1. Los distractores deben ser errores plausibles — algo que
+               alguien confundiría de verdad. Nunca opciones absurdas de
+               relleno.
+            2. Ninguna alternativa puede copiar una frase literal del texto
+               fuente salvo términos técnicos sin sinónimo razonable.
+            3. Todas las alternativas de una misma pregunta deben tener
+               largo similar.
+            4. Prohibido "todas las anteriores" / "ninguna de las
+               anteriores".
+            5. Varía la posición de "correcta_index" entre unidades — no
+               pongas la respuesta correcta siempre en la misma posición
+               (ej. siempre 0), o alguien puede acertar por patrón de
+               posición sin entender nada.
+            6. Antes de fijar "correcta_index" en cada pregunta, releé
+               "explicacion_corta" y verificá que la alternativa en ese
+               índice sea la que esa explicación realmente respalda — no
+               otra que suene plausible pero no esté sostenida por el
+               texto. Si dudás entre dos alternativas, elegí la que se
+               derive más directamente de la explicación, nunca la más
+               elaborada o interesante.
+
+            REGLAS PARA "ordenar"
+            7. Los "items" no deben traer pistas de orden ya incluidas en
+               el texto (ej. "primero", "1.", "después") — el orden se
+               prueba por contenido, no por pistas textuales sueltas.
+
+            REGLAS PARA "emparejar"
+            8. Cada elemento de "columna_derecha_desordenada" debe poder
+               confundirse razonablemente con al menos otro — si un par es
+               demasiado obvio por eliminación, no prueba nada.
 
             FORMATO DE SALIDA
             Responde con un objeto JSON de la forma {"unidades": [...]} — un
@@ -244,37 +311,51 @@ public class PasadaBService {
                 estado);
     }
 
-
-    // La regla 6 (variar la posicion de correcta_index entre unidades) es
-    // responsabilidad del modelo por prompt, pero en la practica no la
-    // respeta de forma confiable (se observo ~65% de las respuestas
-    // correctas cayendo en el mismo indice en una corrida real). En vez de
-    // gastar otra llamada al modelo para corregir algo que es puramente de
-    // orden de presentacion, se reordena programaticamente aca: barato,
-    // determinista, y no depende de que el modelo "aprenda" a variar.
+    // La regla de variar la posicion de correcta_index es responsabilidad
+    // del modelo por prompt, pero en la practica no la respeta de forma
+    // confiable (se observo ~65% de las respuestas correctas cayendo en el
+    // mismo indice en una corrida real). En vez de gastar otra llamada al
+    // modelo para corregir algo que es puramente de orden de presentacion,
+    // se reordena programaticamente aca: barato, determinista, y no
+    // depende de que el modelo "aprenda" a variar. Solo aplica a
+    // opcion_multiple - ordenar/emparejar ya se generan desordenados por
+    // diseño del esquema (ver prompt), no tienen un "indice de posicion"
+    // de la respuesta correcta que reordenar.
     private ContenidoGenerado.UnidadGenerada aleatorizarPosiciones(ContenidoGenerado.UnidadGenerada contenido) {
         return new ContenidoGenerado.UnidadGenerada(
                 contenido.id(),
                 contenido.explicacionCorta(),
                 contenido.explicacionAlternativa(),
-                aleatorizarPosicion(contenido.preguntaReconocimiento()),
-                aleatorizarPosicion(contenido.preguntaRefuerzo()));
+                aleatorizarSiEsOpcionMultiple(contenido.preguntaReconocimiento()),
+                aleatorizarSiEsOpcionMultiple(contenido.preguntaRefuerzo()));
     }
 
-    private ContenidoGenerado.PreguntaGenerada aleatorizarPosicion(ContenidoGenerado.PreguntaGenerada pregunta) {
-        if (pregunta == null || pregunta.alternativas() == null || pregunta.alternativas().isEmpty()) {
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> aleatorizarSiEsOpcionMultiple(Map<String, Object> pregunta) {
+        if (pregunta == null || !"opcion_multiple".equals(pregunta.get("tipo"))) {
             return pregunta;
         }
+        Object alternativasObj = pregunta.get("alternativas");
+        Object correctaObj = pregunta.get("correcta_index");
+        if (!(alternativasObj instanceof List<?> alternativasRaw) || alternativasRaw.isEmpty() || correctaObj == null) {
+            return pregunta;
+        }
+        List<String> alternativas = (List<String>) alternativasRaw;
+        int correctaIndex = ((Number) correctaObj).intValue();
 
         List<Integer> indices = new ArrayList<>();
-        for (int i = 0; i < pregunta.alternativas().size(); i++) {
+        for (int i = 0; i < alternativas.size(); i++) {
             indices.add(i);
         }
         Collections.shuffle(indices, ThreadLocalRandom.current());
 
-        List<String> alternativasReordenadas = indices.stream().map(pregunta.alternativas()::get).toList();
-        int nuevoIndex = indices.indexOf(pregunta.correctaIndex());
-        return new ContenidoGenerado.PreguntaGenerada(pregunta.enunciado(), alternativasReordenadas, nuevoIndex);
+        List<String> alternativasReordenadas = indices.stream().map(alternativas::get).toList();
+        int nuevoIndex = indices.indexOf(correctaIndex);
+
+        Map<String, Object> resultado = new LinkedHashMap<>(pregunta);
+        resultado.put("alternativas", alternativasReordenadas);
+        resultado.put("correcta_index", nuevoIndex);
+        return resultado;
     }
 
     private Map<UUID, ContenidoGenerado.UnidadGenerada> generar(String modelo, List<Unidad> unidades, String textoFuente) {
@@ -301,10 +382,11 @@ public class PasadaBService {
     }
 
     // Validacion post-generacion sin IA (ver notas de implementacion del
-    // documento): largo similar entre alternativas, sin calce literal con
-    // el texto fuente, sin "todas/ninguna de las anteriores". Devuelve la
-    // lista de razones especificas de falla (vacia = valido) para poder
-    // diagnosticar sin adivinar por que escalo una unidad puntual.
+    // documento): reglas estructurales (mecanicas), chequeables sin
+    // entender significado. La plausibilidad de un distractor o de un par
+    // "confundible" (reglas 1 y 8 del prompt) queda fuera de lo que un
+    // chequeo mecanico puede verificar - eso sigue siendo responsabilidad
+    // del modelo via prompt, igual que ya pasaba con opcion_multiple.
     private List<String> razonesInvalidez(ContenidoGenerado.UnidadGenerada contenido, String textoFuente) {
         if (contenido == null) {
             return List.of("sin contenido generado por el modelo");
@@ -315,29 +397,92 @@ public class PasadaBService {
         return razones;
     }
 
-    private List<String> razonesInvalidezPregunta(
-            String tipo, ContenidoGenerado.PreguntaGenerada pregunta, String textoFuente) {
+    private List<String> razonesInvalidezPregunta(String etiqueta, Map<String, Object> pregunta, String textoFuente) {
+        if (pregunta == null) {
+            return List.of(etiqueta + ": sin pregunta generada");
+        }
+        if (!(pregunta.get("tipo") instanceof String tipo)) {
+            return List.of(etiqueta + ": sin campo 'tipo' valido");
+        }
+        return switch (tipo) {
+            case "opcion_multiple" -> razonesInvalidezOpcionMultiple(etiqueta, pregunta, textoFuente);
+            case "ordenar" -> razonesInvalidezOrdenar(etiqueta, pregunta);
+            case "emparejar" -> razonesInvalidezEmparejar(etiqueta, pregunta);
+            default -> List.of(etiqueta + ": tipo de pregunta desconocido '" + tipo + "'");
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> razonesInvalidezOpcionMultiple(String etiqueta, Map<String, Object> pregunta, String textoFuente) {
         List<String> razones = new ArrayList<>();
-        if (pregunta == null || pregunta.alternativas() == null || pregunta.alternativas().isEmpty()) {
-            razones.add(tipo + ": sin alternativas");
+        if (!(pregunta.get("alternativas") instanceof List<?> alternativasRaw) || alternativasRaw.isEmpty()) {
+            razones.add(etiqueta + ": sin alternativas");
             return razones;
         }
+        List<String> alternativas = (List<String>) alternativasRaw;
 
-        int minLargo = pregunta.alternativas().stream().mapToInt(String::length).min().orElse(0);
-        int maxLargo = pregunta.alternativas().stream().mapToInt(String::length).max().orElse(0);
+        int minLargo = alternativas.stream().mapToInt(String::length).min().orElse(0);
+        int maxLargo = alternativas.stream().mapToInt(String::length).max().orElse(0);
         if (minLargo > 0 && maxLargo > minLargo * RATIO_MAXIMO_LARGO_ALTERNATIVAS) {
-            razones.add(tipo + ": largo dispar entre alternativas (min=" + minLargo + ", max=" + maxLargo + ")");
+            razones.add(etiqueta + ": largo dispar entre alternativas (min=" + minLargo + ", max=" + maxLargo + ")");
         }
 
         String textoFuenteMinusculas = textoFuente.toLowerCase(Locale.ROOT);
-        for (String alternativa : pregunta.alternativas()) {
+        for (String alternativa : alternativas) {
             String alternativaMinusculas = alternativa.toLowerCase(Locale.ROOT).trim();
             if (tieneCalceLiteral(alternativaMinusculas, textoFuenteMinusculas)) {
-                razones.add(tipo + ": calce literal con el texto fuente en \"" + alternativa + "\"");
+                razones.add(etiqueta + ": calce literal con el texto fuente en \"" + alternativa + "\"");
             }
             if (FRASES_PROHIBIDAS.stream().anyMatch(alternativaMinusculas::contains)) {
-                razones.add(tipo + ": frase prohibida en \"" + alternativa + "\"");
+                razones.add(etiqueta + ": frase prohibida en \"" + alternativa + "\"");
             }
+        }
+        return razones;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> razonesInvalidezOrdenar(String etiqueta, Map<String, Object> pregunta) {
+        List<String> razones = new ArrayList<>();
+        if (!(pregunta.get("items") instanceof List<?> itemsRaw) || itemsRaw.isEmpty()) {
+            razones.add(etiqueta + ": sin items");
+            return razones;
+        }
+        List<String> items = (List<String>) itemsRaw;
+        if (items.size() < ORDENAR_EMPAREJAR_MINIMO || items.size() > ORDENAR_EMPAREJAR_MAXIMO) {
+            razones.add(etiqueta + ": ordenar debe tener entre " + ORDENAR_EMPAREJAR_MINIMO + " y "
+                    + ORDENAR_EMPAREJAR_MAXIMO + " items (tiene " + items.size() + ")");
+        }
+        if (!(pregunta.get("orden_correcto") instanceof List<?> ordenRaw) || ordenRaw.size() != items.size()) {
+            razones.add(etiqueta + ": orden_correcto ausente o de tamaño distinto a items");
+        }
+        for (String item : items) {
+            String itemMinusculas = item.toLowerCase(Locale.ROOT);
+            if (PISTAS_DE_ORDEN.stream().anyMatch(itemMinusculas::contains) || item.matches("^\\s*\\d+[.).]\\s*.*")) {
+                razones.add(etiqueta + ": item con pista de orden textual en \"" + item + "\"");
+            }
+        }
+        return razones;
+    }
+
+    private List<String> razonesInvalidezEmparejar(String etiqueta, Map<String, Object> pregunta) {
+        List<String> razones = new ArrayList<>();
+        boolean tieneColumnas = pregunta.get("columna_izquierda") instanceof List<?> izquierda && !izquierda.isEmpty()
+                && pregunta.get("columna_derecha_desordenada") instanceof List<?> derecha && !derecha.isEmpty();
+        if (!tieneColumnas) {
+            razones.add(etiqueta + ": faltan columna_izquierda o columna_derecha_desordenada");
+            return razones;
+        }
+        List<?> izquierda = (List<?>) pregunta.get("columna_izquierda");
+        List<?> derecha = (List<?>) pregunta.get("columna_derecha_desordenada");
+        if (izquierda.size() != derecha.size()) {
+            razones.add(etiqueta + ": columna_izquierda y columna_derecha_desordenada deben tener el mismo tamaño");
+        }
+        if (izquierda.size() < ORDENAR_EMPAREJAR_MINIMO || izquierda.size() > ORDENAR_EMPAREJAR_MAXIMO) {
+            razones.add(etiqueta + ": emparejar debe tener entre " + ORDENAR_EMPAREJAR_MINIMO + " y "
+                    + ORDENAR_EMPAREJAR_MAXIMO + " pares (tiene " + izquierda.size() + ")");
+        }
+        if (!(pregunta.get("pares_correctos") instanceof List<?> paresRaw) || paresRaw.size() != izquierda.size()) {
+            razones.add(etiqueta + ": pares_correctos ausente o de tamaño distinto a columna_izquierda");
         }
         return razones;
     }
@@ -360,7 +505,7 @@ public class PasadaBService {
         return false;
     }
 
-    private String serializar(ContenidoGenerado.PreguntaGenerada pregunta) {
+    private String serializar(Map<String, Object> pregunta) {
         return objectMapper.writeValueAsString(pregunta);
     }
 

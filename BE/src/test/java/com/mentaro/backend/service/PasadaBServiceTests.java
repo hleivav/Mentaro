@@ -21,6 +21,7 @@ import com.mentaro.backend.repository.SeccionRepository;
 import com.mentaro.backend.repository.UnidadRepository;
 import com.mentaro.backend.repository.UsuarioRepository;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -70,8 +71,8 @@ class PasadaBServiceTests {
                   "id": "%s",
                   "explicacion_corta": "Explicacion corta de prueba.",
                   "explicacion_alternativa": "Otra forma de explicar lo mismo.",
-                  "pregunta_reconocimiento": {"enunciado": "¿Cual es la idea?", "alternativas": ["Opcion A valida", "Opcion B valida", "Opcion C valida", "Opcion D valida"], "correcta_index": 2},
-                  "pregunta_refuerzo": {"enunciado": "¿Y en otro contexto?", "alternativas": ["Otra A", "Otra B", "Otra C"], "correcta_index": 1}
+                  "pregunta_reconocimiento": {"tipo": "opcion_multiple", "enunciado": "¿Cual es la idea?", "alternativas": ["Opcion A valida", "Opcion B valida", "Opcion C valida", "Opcion D valida"], "correcta_index": 2},
+                  "pregunta_refuerzo": {"tipo": "opcion_multiple", "enunciado": "¿Y en otro contexto?", "alternativas": ["Otra A", "Otra B", "Otra C"], "correcta_index": 1}
                 }]}
                 """.formatted(id);
     }
@@ -120,9 +121,11 @@ class PasadaBServiceTests {
         // aleatorizarPosiciones), asi que no se puede asumir un indice fijo -
         // se verifica que el indice guardado siga apuntando a la alternativa
         // que realmente era la correcta.
-        PreguntaAlmacenada pregunta = objectMapper.readValue(
-                actualizada.getPreguntaReconocimiento(), PreguntaAlmacenada.class);
-        assertThat(pregunta.alternativas().get(pregunta.correctaIndex())).isEqualTo("Opcion C valida");
+        Map<String, Object> pregunta = leerPregunta(actualizada.getPreguntaReconocimiento());
+        @SuppressWarnings("unchecked")
+        List<String> alternativas = (List<String>) pregunta.get("alternativas");
+        int correctaIndex = ((Number) pregunta.get("correcta_index")).intValue();
+        assertThat(alternativas.get(correctaIndex)).isEqualTo("Opcion C valida");
         assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.GENERADA);
 
         Documento documentoFinal = documentoRepository.findById(documento.getId()).orElseThrow();
@@ -228,10 +231,15 @@ class PasadaBServiceTests {
                   "id": "%s",
                   "explicacion_corta": "Explicacion corta.",
                   "explicacion_alternativa": "Otra forma.",
-                  "pregunta_reconocimiento": {"enunciado": "pregunta", "alternativas": %s, "correcta_index": 0},
-                  "pregunta_refuerzo": {"enunciado": "pregunta refuerzo", "alternativas": ["Otra A", "Otra B", "Otra C"], "correcta_index": 0}
+                  "pregunta_reconocimiento": {"tipo": "opcion_multiple", "enunciado": "pregunta", "alternativas": %s, "correcta_index": 0},
+                  "pregunta_refuerzo": {"tipo": "opcion_multiple", "enunciado": "pregunta refuerzo", "alternativas": ["Otra A", "Otra B", "Otra C"], "correcta_index": 0}
                 }
                 """.formatted(id, alternativas);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> leerPregunta(String json) {
+        return objectMapper.readValue(json, Map.class);
     }
 
     @Test
@@ -297,8 +305,8 @@ class PasadaBServiceTests {
                   "id": "%s",
                   "explicacion_corta": "Explicacion corta.",
                   "explicacion_alternativa": "Otra forma.",
-                  "pregunta_reconocimiento": {"enunciado": "pregunta", "alternativas": ["El caballo se llamaba Rocinante", "El caballo se llamaba Bucefalo", "El caballo se llamaba Babieca", "El caballo se llamaba Clavileno"], "correcta_index": 0},
-                  "pregunta_refuerzo": {"enunciado": "pregunta refuerzo", "alternativas": ["Se llamaba Rocinante", "Se llamaba Babieca", "Se llamaba Bucefalo"], "correcta_index": 0}
+                  "pregunta_reconocimiento": {"tipo": "opcion_multiple", "enunciado": "pregunta", "alternativas": ["El caballo se llamaba Rocinante", "El caballo se llamaba Bucefalo", "El caballo se llamaba Babieca", "El caballo se llamaba Clavileno"], "correcta_index": 0},
+                  "pregunta_refuerzo": {"tipo": "opcion_multiple", "enunciado": "pregunta refuerzo", "alternativas": ["Se llamaba Rocinante", "Se llamaba Babieca", "Se llamaba Bucefalo"], "correcta_index": 0}
                 }]}
                 """.formatted(unidad.getId());
 
@@ -328,8 +336,8 @@ class PasadaBServiceTests {
                   "id": "%s",
                   "explicacion_corta": "Explicacion corta.",
                   "explicacion_alternativa": "Otra forma.",
-                  "pregunta_reconocimiento": {"enunciado": "pregunta", "alternativas": ["%s", "Opcion B valida", "Opcion C valida", "Opcion D valida"], "correcta_index": 0},
-                  "pregunta_refuerzo": {"enunciado": "pregunta refuerzo", "alternativas": ["Otra A", "Otra B", "Otra C"], "correcta_index": 0}
+                  "pregunta_reconocimiento": {"tipo": "opcion_multiple", "enunciado": "pregunta", "alternativas": ["%s", "Opcion B valida", "Opcion C valida", "Opcion D valida"], "correcta_index": 0},
+                  "pregunta_refuerzo": {"tipo": "opcion_multiple", "enunciado": "pregunta refuerzo", "alternativas": ["Otra A", "Otra B", "Otra C"], "correcta_index": 0}
                 }]}
                 """.formatted(unidad.getId(), alternativaCopiada);
 
@@ -371,16 +379,139 @@ class PasadaBServiceTests {
 
         long distintosDeCero = unidades.stream()
                 .map(u -> unidadRepository.findById(u.getId()).orElseThrow())
-                .map(u -> {
-                    try {
-                        return objectMapper.readValue(u.getPreguntaReconocimiento(), PreguntaAlmacenada.class);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .filter(p -> p.correctaIndex() != 0)
+                .map(u -> leerPregunta(u.getPreguntaReconocimiento()))
+                .filter(p -> ((Number) p.get("correcta_index")).intValue() != 0)
                 .count();
 
         assertThat(distintosDeCero).isGreaterThan(0);
+    }
+
+    private static String contenidoOrdenar(UUID id, String itemsJson) {
+        return """
+                {"unidades": [{
+                  "id": "%s",
+                  "explicacion_corta": "Explicacion corta.",
+                  "explicacion_alternativa": "Otra forma.",
+                  "pregunta_reconocimiento": {"tipo": "ordenar", "enunciado": "Ordena los pasos", "items": %s, "orden_correcto": [1, 0, 2]},
+                  "pregunta_refuerzo": {"tipo": "ordenar", "enunciado": "Ordena de nuevo", "items": %s, "orden_correcto": [1, 0, 2]}
+                }]}
+                """.formatted(id, itemsJson, itemsJson);
+    }
+
+    private static String contenidoEmparejar(UUID id, String columnaIzquierdaJson, String columnaDerechaJson) {
+        return """
+                {"unidades": [{
+                  "id": "%s",
+                  "explicacion_corta": "Explicacion corta.",
+                  "explicacion_alternativa": "Otra forma.",
+                  "pregunta_reconocimiento": {"tipo": "emparejar", "enunciado": "Une cada elemento",
+                    "columna_izquierda": %s, "columna_derecha_desordenada": %s, "pares_correctos": [[0,1],[1,0],[2,2]]},
+                  "pregunta_refuerzo": {"tipo": "emparejar", "enunciado": "Une de nuevo",
+                    "columna_izquierda": %s, "columna_derecha_desordenada": %s, "pares_correctos": [[0,1],[1,0],[2,2]]}
+                }]}
+                """.formatted(id, columnaIzquierdaJson, columnaDerechaJson, columnaIzquierdaJson, columnaDerechaJson);
+    }
+
+    @Test
+    void ordenarValidoQuedaGenerada() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-ordenar1", "ordenar1@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoOrdenar(unidad.getId(), "[\"Paso B\", \"Paso A\", \"Paso C\"]"));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.GENERADA);
+    }
+
+    @Test
+    void ordenarConPistaDeOrdenEnUnItemEsInvalida() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-ordenar2", "ordenar2@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO, NivelImportancia.IMPORTANTE);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoOrdenar(unidad.getId(),
+                        "[\"Primero se hace B\", \"Luego se hace A\", \"Finalmente se hace C\"]"));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.FALLIDA_EXCLUIDA);
+    }
+
+    @Test
+    void ordenarConMenosDeTresItemsEsInvalida() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-ordenar3", "ordenar3@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO, NivelImportancia.IMPORTANTE);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoOrdenar(unidad.getId(), "[\"Paso B\", \"Paso A\"]"));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.FALLIDA_EXCLUIDA);
+    }
+
+    @Test
+    void emparejarValidoQuedaGenerada() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-emparejar1", "emparejar1@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoEmparejar(unidad.getId(),
+                        "[\"Elemento X\", \"Elemento Y\", \"Elemento Z\"]",
+                        "[\"Definicion P\", \"Definicion Q\", \"Definicion R\"]"));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.GENERADA);
+    }
+
+    @Test
+    void emparejarConColumnasDeTamanoDistintoEsInvalida() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-emparejar2", "emparejar2@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO, NivelImportancia.IMPORTANTE);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoEmparejar(unidad.getId(),
+                        "[\"Elemento X\", \"Elemento Y\", \"Elemento Z\"]",
+                        "[\"Definicion P\", \"Definicion Q\"]"));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.FALLIDA_EXCLUIDA);
+    }
+
+    @Test
+    void aleatorizarPosicionesNoTocaOrdenarNiEmparejar() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-noalea", "noalea@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoOrdenar(unidad.getId(), "[\"Paso B\", \"Paso A\", \"Paso C\"]"));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        Map<String, Object> pregunta = leerPregunta(actualizada.getPreguntaReconocimiento());
+        assertThat(pregunta.get("items")).isEqualTo(List.of("Paso B", "Paso A", "Paso C"));
+        assertThat(pregunta.get("orden_correcto")).isEqualTo(List.of(1, 0, 2));
     }
 }

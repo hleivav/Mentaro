@@ -6,6 +6,8 @@ import { useMapaDocumento } from '../hooks/useMapaDocumento'
 import { usePreferenciaSonido } from '../hooks/usePreferenciaSonido'
 import { ExplicacionUnidad } from '../components/ExplicacionUnidad'
 import { PreguntaOpcionMultiple } from '../components/PreguntaOpcionMultiple'
+import { OrdenarCronologico } from '../components/OrdenarCronologico'
+import { Emparejar } from '../components/Emparejar'
 import { CaminoDeTinta } from '../components/CaminoDeTinta'
 import { IndiceIluminado } from '../components/IndiceIluminado'
 import { TiraSellos } from '../components/TiraSellos'
@@ -100,17 +102,22 @@ export function Juego() {
     }
   }, [unidadIdActiva, tipoElementoActivo, sonidoActivado])
 
-  function manejarRespuesta(respuestaIndex) {
+  function manejarRespuesta(respuesta) {
     responder.mutate(
       {
         unidad_id: elemento.unidad_id,
         tipo_elemento: elemento.tipo_elemento,
-        respuesta_index: respuestaIndex,
+        tipo_pregunta: elemento.pregunta.tipo,
+        respuesta,
         intento_numero: intentoNumero
       },
       {
         onSuccess: (resultado) => {
-          setRetroalimentacion({ indice: respuestaIndex, correcto: resultado.correcto })
+          // "indice" solo tiene sentido para opcion_multiple (que alternativa
+          // resaltar) - en ordenar/emparejar queda undefined y esos
+          // componentes lo ignoran, se apoyan solo en "correcto".
+          const indice = typeof respuesta === 'number' ? respuesta : undefined
+          setRetroalimentacion({ indice, correcto: resultado.correcto })
           if (sonidoActivado) {
             if (resultado.correcto) reproducirAcierto()
             else reproducirError()
@@ -237,12 +244,22 @@ export function Juego() {
         {esNueva && (
           <ExplicacionUnidad titulo={elemento.titulo} explicacion={explicacionAlternativa ?? elemento.explicacion} />
         )}
-        <PreguntaOpcionMultiple
-          pregunta={elemento.pregunta}
-          onResponder={manejarRespuesta}
-          deshabilitado={responder.isPending || mensajeSegundoFallo || pausaAcierto}
-          retroalimentacion={retroalimentacion}
-        />
+        {(() => {
+          const props = {
+            pregunta: elemento.pregunta,
+            onResponder: manejarRespuesta,
+            deshabilitado: responder.isPending || mensajeSegundoFallo || pausaAcierto,
+            retroalimentacion
+          }
+          // key={intentoNumero}: en ordenar/emparejar el estado de la
+          // seleccion vive en el propio componente (no en Juego) - forzar un
+          // remontaje en el segundo intento es lo que limpia esa seleccion,
+          // ver componentes respectivos. opcion_multiple no tiene estado
+          // propio (todo llega por props), no lo necesita.
+          if (elemento.pregunta.tipo === 'ordenar') return <OrdenarCronologico key={intentoNumero} {...props} />
+          if (elemento.pregunta.tipo === 'emparejar') return <Emparejar key={intentoNumero} {...props} />
+          return <PreguntaOpcionMultiple {...props} />
+        })()}
       </VueltaPagina>
 
       {mensajeSegundoFallo && (

@@ -538,6 +538,144 @@ main {
   margin-bottom: 1rem;
 }
 
+/* Ordenar cronologico: "tu secuencia" son filas rayadas numeradas (se
+   toca una fila para deshacerla), "disponibles" son fichas sueltas que
+   se tocan para ir agregando - dos affordances distintas a proposito,
+   para que se lea de un vistazo cual lista "arma" y cual "elige". */
+.ordenar-cronologico__secuencia {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin: 1rem 0;
+  min-height: 2.4em;
+}
+
+.ordenar-cronologico__secuencia li {
+  border-bottom: 1px solid var(--papel-rayado);
+}
+
+.ordenar-cronologico__secuencia li:first-child {
+  border-top: 1px solid var(--papel-rayado);
+}
+
+.ordenar-cronologico__secuencia button {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--tinta);
+  border: none;
+  border-radius: 0;
+  padding: 0.7em 0.35em;
+}
+
+.ordenar-cronologico__secuencia button:active:not(:disabled) {
+  transform: none;
+  background: var(--papel-rayado);
+}
+
+.ordenar-cronologico__vacio {
+  list-style: none;
+  margin-left: -1.4em;
+  color: var(--lapiz);
+  font-style: italic;
+  padding: 0.7em 0.35em;
+}
+
+.ordenar-cronologico__secuencia--correcta {
+  outline: 2px solid var(--musgo);
+  outline-offset: 4px;
+}
+
+.ordenar-cronologico__secuencia--incorrecta {
+  outline: 2px solid var(--vino);
+  outline-offset: 4px;
+}
+
+.ordenar-cronologico__disponibles {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.ordenar-cronologico__disponibles button {
+  background: var(--papel);
+  color: var(--tinta);
+  border: 1px dashed var(--lapiz);
+  border-radius: var(--radio);
+  padding: 0.5em 0.9em;
+}
+
+.ordenar-cronologico__disponibles button:hover:not(:disabled) {
+  border-color: var(--resaltador);
+  color: var(--resaltador);
+}
+
+.ordenar-cronologico__retro--correcta,
+.emparejar__retro--correcta {
+  color: var(--musgo);
+  font-weight: 700;
+}
+
+.ordenar-cronologico__retro--incorrecta,
+.emparejar__retro--incorrecta {
+  color: var(--vino);
+  font-weight: 700;
+}
+
+/* Emparejar: dos columnas, tocar izquierda "activa" un elemento (resaltado)
+   y despues tocar derecha cierra el par; un par formado se puede volver a
+   tocar (en cualquiera de las dos columnas) para deshacerlo. */
+.emparejar__columnas {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.emparejar__columna {
+  flex: 1;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.emparejar__columna button {
+  width: 100%;
+  text-align: left;
+  background: var(--papel);
+  color: var(--tinta);
+  border: 1px dashed var(--lapiz);
+  border-radius: var(--radio);
+  padding: 0.6em 0.8em;
+}
+
+.emparejar__columna button:hover:not(:disabled) {
+  border-color: var(--resaltador);
+}
+
+.emparejar__item--activo {
+  border-color: var(--resaltador) !important;
+  background: var(--papel-rayado);
+}
+
+.emparejar__item--emparejado {
+  border-style: solid;
+  border-color: var(--musgo);
+  background: var(--musgo-suave);
+}
+
+.emparejar--correcta .emparejar__columna button {
+  border-color: var(--musgo);
+}
+
+.emparejar--incorrecta .emparejar__columna button {
+  border-color: var(--vino);
+}
+
 .juego {
   position: relative;
 }
