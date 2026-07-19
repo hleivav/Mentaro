@@ -22,8 +22,14 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: ${DOCUMENTO_TAMANO_MAXIMO:20MB}
-      max-request-size: ${DOCUMENTO_TAMANO_MAXIMO:20MB}
+      # 20MB resulto corto para un PDF real con imagenes (problema
+      # detectado probando: un documento de 23MB reseteaba la conexion a
+      # mitad de la subida en vez de un error HTTP limpio). El costo de IA
+      # ya esta acotado aparte por el limite de 30 imagenes descritas por
+      # documento (ver DescriptorImagenesPdf), asi que un limite de tamano
+      # mas generoso aca no dispara mas gasto por si solo.
+      max-file-size: ${DOCUMENTO_TAMANO_MAXIMO:50MB}
+      max-request-size: ${DOCUMENTO_TAMANO_MAXIMO:50MB}
 
 server:
   port: ${PORT:8080}

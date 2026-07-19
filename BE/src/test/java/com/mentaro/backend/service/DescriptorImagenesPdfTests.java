@@ -91,6 +91,59 @@ class DescriptorImagenesPdfTests {
     }
 
     @Test
+    void descartaImagenesClasificadasComoDecorativasSinPersistirlas() throws IOException {
+        // Reproduce el problema real detectado probando: logos y membretes
+        // institucionales (ej. el logo de la universidad que dicta el
+        // curso) pasan el filtro de tamano sin problema, pero no aportan
+        // nada al contenido - se descartan aca, no en la galeria.
+        when(anthropicClient.describirImagen(any(), anyString(), anyString()))
+                .thenReturn("RELEVANCIA: decorativo\nDESCRIPCION:");
+        try (PDDocument pdf = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            pdf.addPage(pagina);
+            agregarImagen(pdf, pagina, 200, 200);
+
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
+
+            assertThat(resultado).isEmpty();
+        }
+    }
+
+    @Test
+    void conservaImagenesRelevantesYExtraeSoloElCampoDescripcion() throws IOException {
+        when(anthropicClient.describirImagen(any(), anyString(), anyString()))
+                .thenReturn("RELEVANCIA: relevante\nDESCRIPCION: Un diagrama de flujo del algoritmo.");
+        try (PDDocument pdf = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            pdf.addPage(pagina);
+            agregarImagen(pdf, pagina, 200, 200);
+
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
+
+            assertThat(resultado).singleElement().satisfies(imagen ->
+                    assertThat(imagen.descripcion()).isEqualTo("Un diagrama de flujo del algoritmo."));
+        }
+    }
+
+    @Test
+    void siElModeloNoSigueElFormatoEsperadoConservaLaImagenPorDefecto() throws IOException {
+        // Parseo defensivo: una desviacion de formato no debe descartar
+        // contenido util - se prefiere conservar (falla abierto).
+        when(anthropicClient.describirImagen(any(), anyString(), anyString()))
+                .thenReturn("Un diagrama sin el formato pedido.");
+        try (PDDocument pdf = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            pdf.addPage(pagina);
+            agregarImagen(pdf, pagina, 200, 200);
+
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
+
+            assertThat(resultado).singleElement().satisfies(imagen ->
+                    assertThat(imagen.descripcion()).isEqualTo("Un diagrama sin el formato pedido."));
+        }
+    }
+
+    @Test
     void unaImagenQueFallaNoBloqueaElRestoDelLote() throws IOException {
         when(anthropicClient.describirImagen(any(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("Anthropic no respondio"))

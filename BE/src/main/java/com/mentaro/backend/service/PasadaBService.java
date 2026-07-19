@@ -98,6 +98,17 @@ public class PasadaBService {
                suene plausible pero no esté sostenida por el texto. Si dudás
                entre dos alternativas, elegí la que se derive más directamente
                de la explicación, nunca la más elaborada o interesante.
+            8. El enunciado y TODAS las alternativas (no solo la correcta) de
+               "pregunta_reconocimiento" tienen que poder evaluarse con la
+               información que "explicacion_corta" ya dio — nunca metas un
+               dato, cifra o detalle del texto fuente que la explicación no
+               haya mencionado, aunque sea real y esté en el texto fuente. El
+               usuario solo estudió la explicación corta; si la pregunta
+               exige algo que no está ahí, no hay forma de responder por
+               conocimiento genuino, solo por descarte o suerte. Mismo
+               criterio para "pregunta_refuerzo": puede ilustrar la idea con
+               un ejemplo distinto, pero la idea que evalúa tiene que ser la
+               misma que ya cubrió "explicacion_corta", no un dato adicional.
 
             FORMATO DE SALIDA
             Responde con un objeto JSON de la forma {"unidades": [...]} — un
