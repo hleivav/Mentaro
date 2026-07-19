@@ -17,8 +17,8 @@ export default defineConfig({
         name: 'Mentaro',
         short_name: 'Mentaro',
         description: 'Convierte cualquier documento en una experiencia de aprendizaje jugable',
-        theme_color: '#f1e8d4',
-        background_color: '#f1e8d4',
+        theme_color: '#faf6ee',
+        background_color: '#faf6ee',
         display: 'standalone',
         start_url: '/',
         icons: [

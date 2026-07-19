@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
-// Linea serpenteante LIBRE - a proposito distinta de la silueta de
-// cabeza/cerebro del icono de la app (esa queda exclusiva del icono
-// estatico; ver aclaracion post-implementacion del sistema de diseño).
-// Misma forma para "barra" y "completa", solo cambia la escala via CSS.
+// Trazado irregular a proposito (nunca una onda perfectamente repetida)
+// - se busca que se lea como un garabato hecho a mano para recordar
+// donde ibas, no como un elemento vectorial de UI diseñado (ver
+// identidad visual v2, "Camino de Tinta -> garabato de margen").
 const CAMINO_PATH =
-  'M10,30 C40,5 70,5 100,30 C130,55 160,55 190,30 ' +
-  'C220,5 250,5 280,30 C310,55 340,55 370,30 C385,20 393,14 398,8'
+  'M8,32 C35,10 55,4 85,26 C110,44 125,50 155,28 ' +
+  'C180,10 200,6 230,24 C258,42 270,48 300,26 C325,10 340,8 365,22 C380,30 390,16 400,10'
 
 // modo: "barra" (delgada, persistente durante el juego) o "completa"
 // (pagina completa, momento de cierre). progreso: 0..1. totalNodos: la
@@ -19,6 +19,10 @@ export function CaminoDeTinta({ progreso, modo = 'barra', enRefuerzo = false, to
   const [longitud, setLongitud] = useState(0)
   const [nodos, setNodos] = useState([])
   const cantidadNodos = Math.max(1, totalNodos)
+  // Id unico por instancia - un <filter> vive en el DOM global del
+  // documento, sin esto dos garabatos en pantalla a la vez colisionarian
+  // de id.
+  const idFiltro = `garabato-temblor-${useId()}`
 
   useEffect(() => {
     if (pathRef.current) {
@@ -46,16 +50,27 @@ export function CaminoDeTinta({ progreso, modo = 'barra', enRefuerzo = false, to
       role="img"
       aria-label={`Progreso: ${Math.round(progresoAcotado * 100)}%`}
     >
-      <path className="camino-de-tinta__fondo" d={CAMINO_PATH} />
-      <path
-        ref={pathRef}
-        className="camino-de-tinta__trazo"
-        d={CAMINO_PATH}
-        style={{
-          strokeDasharray: longitud,
-          strokeDashoffset: dashoffset
-        }}
-      />
+      <defs>
+        {/* Temblor sutil (no ruidoso) - la firma de un trazo hecho a mano
+            en vez de una curva Bezier perfecta. prefers-reduced-motion no
+            aplica aca (es un desplazamiento estatico, no una animacion). */}
+        <filter id={idFiltro} x="-10%" y="-50%" width="120%" height="200%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="4" result="textura" />
+          <feDisplacementMap in="SourceGraphic" in2="textura" scale="2.2" />
+        </filter>
+      </defs>
+      <g filter={`url(#${idFiltro})`}>
+        <path className="camino-de-tinta__fondo" d={CAMINO_PATH} />
+        <path
+          ref={pathRef}
+          className="camino-de-tinta__trazo"
+          d={CAMINO_PATH}
+          style={{
+            strokeDasharray: longitud,
+            strokeDashoffset: dashoffset
+          }}
+        />
+      </g>
       {nodos.map((nodo, indice) => (
         <circle
           key={indice}
@@ -65,11 +80,6 @@ export function CaminoDeTinta({ progreso, modo = 'barra', enRefuerzo = false, to
           className={nodo.fraccion <= progresoAcotado ? 'camino-de-tinta__nodo camino-de-tinta__nodo--alcanzado' : 'camino-de-tinta__nodo'}
         />
       ))}
-      {/* El "lazo hacia atras" del refuerzo espaciado se representa como un
-          pequeño trazo circular junto al nodo activo - una version
-          simplificada de "la linea se dobla sobre si misma", ya que
-          deformar el path principal con precision de longitud de arco no
-          es viable sobre un trazado aproximado a mano. */}
       {enRefuerzo && nodoActivo && (
         <circle className="camino-de-tinta__lazo-refuerzo" cx={nodoActivo.x} cy={nodoActivo.y} r={9} />
       )}

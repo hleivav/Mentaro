@@ -11,7 +11,7 @@ main {
   align-items: center;
   justify-content: space-between;
   padding: 0.85rem 1.5rem;
-  background: var(--pergamino-hondo);
+  background: var(--papel-rayado);
   border-bottom: 2px solid var(--tinta);
 }
 
@@ -19,7 +19,7 @@ main {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: var(--fuente-display);
+  font-family: var(--fuente-titulo);
   font-weight: 700;
   font-size: 1.15rem;
   color: var(--tinta);
@@ -46,14 +46,29 @@ main {
   white-space: nowrap;
 }
 
+/* Subrayado ondulado en vez de una linea recta - el enlace de
+   navegacion mas visible de la pantalla tambien necesitaba dejar de
+   sentirse "web app generica" (ver identidad visual v2, ronda de
+   ajuste). */
 .volver-a-seleccion {
   display: inline-block;
   margin-bottom: 1.5rem;
   color: var(--vino);
   font-weight: 600;
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
 }
 
-/* ---------- El Camino de Tinta ---------- */
+/* ---------- El garabato de margen (antes "Camino de Tinta") ---------- */
+/* Reinterpretacion de la identidad v2: ya no una linea SVG estilizada de
+   UI, sino algo que se sienta como una marca hecha a mano para recordar
+   donde ibas - mismo mecanismo de siempre (stroke-dashoffset, seccion
+   actual nunca el documento completo, ver sistema de diseño), pero con
+   un trazado irregular (no una onda perfecta) y un filtro de "temblor"
+   sutil (ver CaminoDeTinta.jsx) para que no se lea como elemento
+   vectorial diseñado. */
 
 .camino-de-tinta {
   overflow: visible;
@@ -81,36 +96,36 @@ main {
 
 .camino-de-tinta__fondo {
   fill: none;
-  stroke: var(--pergamino-hondo);
-  stroke-width: 4;
+  stroke: var(--papel-rayado);
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .camino-de-tinta__trazo {
   fill: none;
-  stroke: var(--vino);
-  stroke-width: 4;
+  stroke: var(--tinta);
+  stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
   transition: stroke-dashoffset 0.6s ease;
 }
 
 .camino-de-tinta__nodo {
-  fill: var(--pergamino);
-  stroke: var(--pergamino-hondo);
+  fill: var(--papel);
+  stroke: var(--papel-rayado);
   stroke-width: 2;
   transition: fill 0.4s ease, stroke 0.4s ease;
 }
 
 .camino-de-tinta__nodo--alcanzado {
-  fill: var(--oro);
-  stroke: var(--vino);
+  fill: var(--resaltador);
+  stroke: var(--tinta);
 }
 
 .camino-de-tinta__lazo-refuerzo {
   fill: none;
-  stroke: var(--oro);
+  stroke: var(--resaltador);
   stroke-width: 2.5;
   stroke-dasharray: 3 4;
   animation: girar-lazo 1.4s linear infinite;
@@ -165,7 +180,7 @@ main {
 }
 
 .subir__nombre-archivo {
-  color: var(--tinta-suave);
+  color: var(--lapiz);
   font-size: 0.9rem;
 }
 
@@ -181,7 +196,7 @@ main {
 }
 
 .documentos li {
-  background: var(--pergamino-hondo);
+  background: var(--papel-rayado);
   border-radius: var(--radio);
   padding: 1rem 1.25rem;
   display: flex;
@@ -196,15 +211,16 @@ main {
 }
 
 .documentos li strong {
-  font-family: var(--fuente-display);
+  font-family: var(--fuente-titulo);
   font-weight: 600;
 }
 
 /* ---------- Seleccion de secciones ---------- */
 
-/* Tabla de contenidos, no arbol de habilidades de videojuego: tipografia
-   display para los titulos, indentacion via el mismo borde fino que ya
-   usa el Camino de Tinta como lenguaje visual de "conector". */
+/* Tabla de contenidos del cuaderno, no arbol de habilidades de
+   videojuego: tipografia de titulo calida para los nombres, indentacion
+   via el mismo borde fino que usa el garabato de margen como lenguaje
+   visual de "conector". */
 .arbol-secciones {
   list-style: none;
   padding-left: 0;
@@ -213,7 +229,7 @@ main {
 .arbol-secciones ul {
   list-style: none;
   padding-left: 1.4rem;
-  border-left: 2px solid var(--pergamino-hondo);
+  border-left: 2px solid var(--papel-rayado);
   margin-left: 0.4rem;
 }
 
@@ -230,28 +246,28 @@ main {
 }
 
 .arbol-secciones__titulo {
-  font-family: var(--fuente-display);
+  font-family: var(--fuente-titulo);
   font-size: 1.05rem;
 }
 
 .arbol-secciones input[type='checkbox'] {
   width: 18px;
   height: 18px;
-  accent-color: var(--vino);
+  accent-color: var(--resaltador);
   flex-shrink: 0;
 }
 
 /* Seccion auto-incluida por ser prerrequisito de otra: se distingue con
-   el mismo trazo fino de tinta que el Camino de Tinta, en vez de una
-   metafora nueva sin relacion con el resto del sistema. */
+   el mismo trazo fino que el garabato de margen, en vez de una metafora
+   nueva sin relacion con el resto del sistema. */
 .arbol-secciones__nodo--dependencia {
-  border-left: 2px solid var(--oro);
+  border-left: 2px solid var(--resaltador);
   padding-left: 0.6rem;
   margin-left: -0.6rem;
 }
 
 .arbol-secciones__nodo--dependencia > label {
-  color: var(--tinta-suave);
+  color: var(--lapiz);
 }
 
 .arbol-secciones__nota {
@@ -275,12 +291,12 @@ main {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--desvanecido);
+  color: var(--lapiz);
 }
 
 .selector-profundidad label {
   display: block;
-  border: 1.5px solid var(--pergamino-hondo);
+  border: 1.5px solid var(--papel-rayado);
   border-radius: var(--radio);
   padding: 0.6em 1em;
   cursor: pointer;
@@ -288,11 +304,11 @@ main {
 
 .selector-profundidad label:has(input:checked) {
   border-color: var(--vino);
-  background: var(--pergamino-hondo);
+  background: var(--papel-rayado);
 }
 
 .selector-profundidad input[type='radio'] {
-  accent-color: var(--vino);
+  accent-color: var(--resaltador);
   margin-right: 0.4rem;
 }
 
@@ -305,16 +321,47 @@ main {
 
 .seleccion-secciones__resumen p {
   margin: 0;
-  color: var(--tinta-suave);
+  color: var(--lapiz);
 }
 
 /* ---------- Juego ---------- */
 
+/* Clip dibujado + esquina doblada bien visible (no sutil) - la tarjeta
+   de explicacion tiene su propia personalidad, no solo el indice (ver
+   identidad visual v2, ronda de ajuste). */
 .explicacion-unidad {
-  background: var(--pergamino-hondo);
+  position: relative;
+  background: var(--papel-rayado);
   border-radius: var(--radio);
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  padding: 1.75rem 1.5rem 1.5rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.explicacion-unidad::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, transparent 50%, var(--papel) 50%);
+  border-bottom-left-radius: 4px;
+  box-shadow: -2px 2px 4px rgba(34, 56, 92, 0.2);
+}
+
+.explicacion-unidad__clip {
+  position: absolute;
+  top: -14px;
+  left: 28px;
+  width: 22px;
+  height: 40px;
+  transform: rotate(-8deg);
+}
+
+.explicacion-unidad__clip path {
+  stroke: var(--resaltador);
+  stroke-width: 2.5;
+  stroke-linecap: round;
 }
 
 .explicacion-unidad h2 {
@@ -324,42 +371,113 @@ main {
 .pregunta-opcion-multiple ul {
   list-style: none;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
+  margin: 0;
+}
+
+/* Filas de hoja rayada, no tarjetas de formulario - cada alternativa es
+   una linea que se toca para elegir (ver identidad visual v2, ronda de
+   ajuste: la forma tenia que cambiar, no solo el color). */
+.pregunta-opcion-multiple li {
+  border-bottom: 1px solid var(--papel-rayado);
+}
+
+.pregunta-opcion-multiple li:first-child {
+  border-top: 1px solid var(--papel-rayado);
 }
 
 .pregunta-opcion-multiple button {
   width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
   text-align: left;
-  background: #fff;
+  background: transparent;
   color: var(--tinta);
-  border: 1.5px solid var(--pergamino-hondo);
-}
-
-.pregunta-opcion-multiple button:hover:not(:disabled) {
-  border-color: var(--oro);
-  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  padding: 0.9em 0.35em;
 }
 
 .pregunta-opcion-multiple button:active:not(:disabled) {
-  border-color: var(--vino);
+  transform: none;
+  background: var(--papel-rayado);
+}
+
+.pregunta-opcion-multiple__texto {
+  flex: 1;
+}
+
+/* Casilla dibujada a mano en vez de resaltar solo con color - el icono
+   de la regla dura (color + icono + texto) vive aca. position:relative
+   + overflow visible a proposito: la marca (ver MarcaCasilla) se sale
+   del cuadrado, como una marca real hecha con lapiz. */
+.pregunta-opcion-multiple__casilla {
+  position: relative;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--lapiz);
+  border-radius: 6px 7px 6px 8px;
+  transform: rotate(-2deg);
+}
+
+.pregunta-opcion-multiple button:hover:not(:disabled) .pregunta-opcion-multiple__casilla {
+  border-color: var(--resaltador);
+}
+
+.marca-casilla {
+  position: absolute;
+  top: -9px;
+  left: -7px;
+  width: 44px;
+  height: 44px;
+  overflow: visible;
+}
+
+.marca-casilla__capa {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Capa de fondo - mas ancha y translucida, con su propio temblor, para
+   que se lea como el sangrado de una pincelada real. */
+.marca-casilla__capa--fondo {
+  stroke-width: 7;
+  opacity: 0.32;
+}
+
+.marca-casilla__capa--trazo {
+  stroke-width: 3.25;
+}
+
+.marca-casilla--correcta .marca-casilla__capa {
+  stroke: var(--musgo);
+}
+
+.marca-casilla--incorrecta .marca-casilla__capa {
+  stroke: var(--vino);
 }
 
 /* Retroalimentacion de respuesta - uno de los dos unicos momentos que se
-   ganan movimiento (ver principios de movimiento). Acierto: un trazo de
-   tinta se dibuja bajo la alternativa (nunca un icono de check
-   generico). Fallo: un sello sutil, nunca shake ni rojo saturado. */
+   ganan movimiento (ver principios de movimiento). Acierto: un trazo se
+   dibuja bajo la alternativa (nunca un icono de check generico). Fallo:
+   un sello sutil, nunca shake ni rojo saturado. */
 .pregunta-opcion-multiple button.alternativa--correcta {
-  border-color: var(--musgo);
   background: var(--musgo-suave);
   position: relative;
 }
 
-.pregunta-opcion-multiple button.alternativa--correcta::after {
+.pregunta-opcion-multiple button.alternativa--correcta .pregunta-opcion-multiple__casilla {
+  border-color: var(--musgo);
+  background: #fff;
+}
+
+.pregunta-opcion-multiple button.alternativa--correcta::before {
   content: '';
   position: absolute;
-  left: 1em;
+  left: 3.2em;
   right: 1em;
   bottom: 6px;
   height: 2px;
@@ -376,8 +494,11 @@ main {
 }
 
 .pregunta-opcion-multiple button.alternativa--incorrecta {
-  border-color: var(--vino);
   animation: sello-fallo 0.3s ease;
+}
+
+.pregunta-opcion-multiple button.alternativa--incorrecta .pregunta-opcion-multiple__casilla {
+  border-color: var(--vino);
 }
 
 @keyframes sello-fallo {
@@ -395,8 +516,8 @@ main {
 /* Tercera señal de la regla dura (color + icono + texto) - nunca solo la
    decoracion de arriba. */
 .pregunta-opcion-multiple__retro-texto {
-  display: block;
-  margin-top: 0.35rem;
+  flex-basis: 100%;
+  margin: 0;
   font-weight: 700;
   font-size: 0.9rem;
 }
@@ -421,6 +542,44 @@ main {
   position: relative;
 }
 
+/* Vuelta de pagina al cambiar de pregunta - flip 3D de CSS (perspective
+   + rotateY sobre un par de caras), no una simulacion de curvatura
+   realista. Con prefers-reduced-motion, VueltaPagina.jsx ni siquiera
+   arma esta estructura (ver el componente) - esto solo se renderiza
+   cuando la animacion realmente va a correr. */
+.vuelta-pagina {
+  perspective: 1400px;
+}
+
+.vuelta-pagina__interior {
+  position: relative;
+  transform-style: preserve-3d;
+  animation: vuelta-pagina-girar 0.9s ease-in-out forwards;
+}
+
+.vuelta-pagina__cara {
+  backface-visibility: hidden;
+}
+
+.vuelta-pagina__cara--saliente {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(0deg);
+}
+
+.vuelta-pagina__cara--entrante {
+  transform: rotateY(180deg);
+}
+
+@keyframes vuelta-pagina-girar {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+
 .juego button.secundario + button.secundario {
   margin-left: 0.5rem;
 }
@@ -431,7 +590,7 @@ main {
 
 /* Aviso de "concepto nuevo" vs "repaso" al cargar la pregunta - un
    destello breve, nunca un elemento que compita con el contenido (ver
-   principios de movimiento: solo el Camino de Tinta y la
+   principios de movimiento: solo el garabato de margen y la
    retroalimentacion de respuesta se ganan movimiento; este es una
    variante minima de ese segundo momento, no un tercero nuevo). */
 .destello {
@@ -444,11 +603,11 @@ main {
 }
 
 .destello--nuevo {
-  background: radial-gradient(circle at 50% 0%, rgba(139, 58, 58, 0.16), transparent 70%);
+  background: radial-gradient(circle at 50% 0%, rgba(224, 152, 46, 0.22), transparent 70%);
 }
 
 .destello--repaso {
-  background: radial-gradient(circle at 50% 0%, rgba(184, 146, 90, 0.2), transparent 70%);
+  background: radial-gradient(circle at 50% 0%, rgba(34, 56, 92, 0.14), transparent 70%);
 }
 
 @keyframes destello-fundido {
@@ -460,9 +619,10 @@ main {
   }
 }
 
-/* El Camino de Tinta durante el juego representa solo la seccion actual
-   (ver correccion del sistema de diseño) - nunca es la unica fuente de
-   la cifra de avance, siempre va acompañado del respaldo textual. */
+/* El garabato de margen durante el juego representa solo la seccion
+   actual (ver correccion del sistema de diseño) - nunca es la unica
+   fuente de la cifra de avance, siempre va acompañado del respaldo
+   textual. */
 .camino-de-tinta-envoltura {
   margin-bottom: 1.5rem;
 }
@@ -475,22 +635,33 @@ main {
   margin-bottom: 0.25rem;
 }
 
+/* Fuente manuscrita en vez de versalitas formales tipo archivo
+   institucional - un lugar barato y directo para que el "esto es tuyo"
+   aparezca tambien fuera del indice (ver identidad visual v2, ronda de
+   ajuste). */
+.camino-de-tinta-envoltura__ubicacion {
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--tinta);
+  margin: 0;
+}
+
 .camino-de-tinta-envoltura__repaso {
   font-family: var(--fuente-ui);
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--oro);
+  color: var(--lapiz);
   white-space: nowrap;
 }
 
 .camino-de-tinta-envoltura__respaldo {
   text-align: center;
-  color: var(--desvanecido);
+  color: var(--lapiz);
   font-size: 0.85rem;
   margin: 0.1rem 0 0;
 }
 
-/* ---------- Indice iluminado ---------- */
+/* ---------- Indice iluminado (tabla de contenidos del cuaderno) ---------- */
 
 .indice-iluminado-envoltura {
   margin: 1.5rem 0;
@@ -509,7 +680,7 @@ main {
   list-style: none;
   padding-left: 0;
   margin: 0;
-  font-family: var(--fuente-display);
+  font-family: var(--fuente-titulo);
 }
 
 .indice-iluminado ul {
@@ -524,13 +695,13 @@ main {
 }
 
 .indice-iluminado__nodo--sin-seleccionar {
-  color: var(--desvanecido);
-  border-left-color: var(--pergamino-hondo);
+  color: var(--lapiz);
+  border-left-color: var(--papel-rayado);
 }
 
 /* Parte de la seleccion actual, todavia no dominada - texto en color
    normal (legible, no atenuado) + un punto hueco antes del titulo,
-   distinto a proposito del ✦ dorado de "iluminada" mas abajo. */
+   distinto a proposito de la marca manuscrita de "dominada" mas abajo. */
 .indice-iluminado__nodo--en-seleccion {
   color: var(--tinta);
   border-left-color: var(--vino);
@@ -544,12 +715,19 @@ main {
 .indice-iluminado__nodo--iluminada {
   color: var(--tinta);
   font-weight: 700;
-  border-left-color: var(--oro);
+  border-left-color: var(--resaltador);
 }
 
+/* Check dibujado a mano (fuente manuscrita), no un ✦ dorado
+   institucional - ver identidad visual v2. */
 .indice-iluminado__nodo--iluminada > span::after {
-  content: ' ✦';
-  color: var(--oro);
+  content: ' ✓';
+  font-family: var(--fuente-manuscrita);
+  font-size: 1.3em;
+  font-weight: 700;
+  color: var(--resaltador);
+  display: inline-block;
+  transform: rotate(-8deg);
 }
 
 /* ---------- Indicador de carga ---------- */
@@ -558,7 +736,7 @@ main {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  color: var(--tinta-suave);
+  color: var(--lapiz);
 }
 
 .indicador-carga__spinner {
@@ -566,8 +744,8 @@ main {
   height: 18px;
   flex-shrink: 0;
   border-radius: 50%;
-  border: 3px solid var(--pergamino-hondo);
-  border-top-color: var(--oro);
+  border: 3px solid var(--papel-rayado);
+  border-top-color: var(--resaltador);
   animation: girar-indicador 0.8s linear infinite;
 }
 
@@ -584,20 +762,20 @@ main {
 }
 
 .barra-progreso__texto {
-  color: var(--tinta-suave);
+  color: var(--lapiz);
   margin-bottom: 0.4rem;
 }
 
 .barra-progreso__pista {
   height: 8px;
   border-radius: 4px;
-  background: var(--pergamino-hondo);
+  background: var(--papel-rayado);
   overflow: hidden;
 }
 
 .barra-progreso__relleno {
   height: 100%;
-  background: var(--oro);
+  background: var(--resaltador);
   border-radius: 4px;
   transition: width 0.2s ease;
 }
@@ -630,7 +808,7 @@ main {
 }
 
 .galeria-imagenes__item {
-  background: var(--pergamino-hondo);
+  background: var(--papel-rayado);
   border-radius: var(--radio);
   overflow: hidden;
 }
@@ -649,30 +827,64 @@ main {
 .galeria-imagenes__pie {
   padding: 0.85rem 1rem;
   margin: 0;
-  color: var(--tinta-suave);
+  color: var(--lapiz);
   font-size: 0.9rem;
 }
 
-/* ---------- Tira de sellos ---------- */
+/* ---------- Tira de sellos -> washi tape ---------- */
+/* Reinterpretacion de la identidad v2: en vez de sellos de cera
+   circulares, tiras de cinta decorativa en 3 tonos pastel rotando,
+   pegadas en angulos ligeramente distintos entre si (imperfeccion
+   deliberada - nunca todas alineadas en grilla perfecta). */
 
 .tira-sellos {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 0.5rem;
   margin: 1rem 0;
 }
 
 .tira-sellos__sello {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--vino);
-  border: 2px solid var(--oro);
+  width: 28px;
+  height: 16px;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(34, 56, 92, 0.18);
+}
+
+.tira-sellos__sello:nth-child(6n + 1) {
+  background: var(--tape-rosa);
+  transform: rotate(-7deg);
+}
+
+.tira-sellos__sello:nth-child(6n + 2) {
+  background: var(--tape-salvia);
+  transform: rotate(5deg);
+}
+
+.tira-sellos__sello:nth-child(6n + 3) {
+  background: var(--tape-cielo);
+  transform: rotate(-4deg);
+}
+
+.tira-sellos__sello:nth-child(6n + 4) {
+  background: var(--tape-salvia);
+  transform: rotate(6deg);
+}
+
+.tira-sellos__sello:nth-child(6n + 5) {
+  background: var(--tape-cielo);
+  transform: rotate(-5deg);
+}
+
+.tira-sellos__sello:nth-child(6n) {
+  background: var(--tape-rosa);
+  transform: rotate(3deg);
 }
 
 .tira-sellos__contador {
   align-self: center;
-  color: var(--desvanecido);
+  color: var(--lapiz);
   font-size: 0.85rem;
   cursor: help;
 }
@@ -680,5 +892,5 @@ main {
 .tira-sellos__explicacion {
   flex-basis: 100%;
   margin: 0.2rem 0 0;
-  color: var(--desvanecido);
+  color: var(--lapiz);
 }

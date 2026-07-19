@@ -1,31 +1,44 @@
 :root {
   color-scheme: light;
 
-  /* Tokens de color - navy + vino + oro sobre pergamino. Deliberadamente
-     nada de terracota/naranja ni negro con acento neon (ver sistema de
-     diseño): ese territorio se lee como "hecho por IA" de inmediato. */
-  --tinta: #1a2a4a;
-  --tinta-suave: #3d4f6e;
-  --pergamino: #f1e8d4;
-  --pergamino-hondo: #e8dcc0;
-  --vino: #8b3a3a;
-  --oro: #b8925a;
-  --musgo: #4a6741;
-  --musgo-suave: #edf2ea;
-  --desvanecido: #7a6f5d;
+  /* Tokens de color - "Cuaderno de Descubrimientos": la interfaz es el
+     cuaderno propio del jugador, no un archivo institucional ajeno.
+     Reemplaza por completo la direccion anterior (navy/vino/oro sobre
+     pergamino envejecido) - cambio de referencia, no ajuste de paleta. */
+  --papel: #fff8ed;
+  --papel-rayado: #f5ecd9;
+  --tinta: #22385c;
+  /* Ambar calido, nunca coral/rojo - chocaria con --vino (incorrecto):
+     confundir "continuar" con "te equivocaste" por parentesco de color
+     es un error real detectado revisando mockups. */
+  --resaltador: #e0982e;
+  --musgo: #5a7d54;
+  --musgo-suave: #eaf0e6;
+  --vino: #a13d3d;
+  --lapiz: #7a7266;
+
+  /* Washi tape / estampillas - 3 tonos vivos rotando, nunca pasteles
+     apagados ni uno solo (ver TiraSellos). */
+  --tape-rosa: #ff8fa3;
+  --tape-salvia: #4caf7d;
+  --tape-cielo: #4a9fe0;
 
   --radio: 11px;
-  --fuente-display: 'Fraunces', Georgia, serif;
+  --fuente-titulo: 'Lora', Georgia, serif;
   --fuente-ui: 'Public Sans', system-ui, sans-serif;
+  --fuente-manuscrita: 'Caveat', cursive;
 }
 
 * {
   box-sizing: border-box;
 }
 
+/* Textura sutil de papel de cuaderno (lineas tenues), no pergamino
+   envejecido con manchas. */
 body {
   margin: 0;
-  background: var(--pergamino);
+  background-color: var(--papel);
+  background-image: repeating-linear-gradient(to bottom, transparent, transparent 27px, var(--papel-rayado) 28px);
   color: var(--tinta);
   font-family: var(--fuente-ui);
   line-height: 1.5;
@@ -34,7 +47,7 @@ body {
 h1,
 h2,
 h3 {
-  font-family: var(--fuente-display);
+  font-family: var(--fuente-titulo);
   font-weight: 700;
   line-height: 1.15;
   margin: 0 0 0.5em;
@@ -56,14 +69,22 @@ p {
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--desvanecido);
+  color: var(--lapiz);
+}
+
+/* Anotacion manuscrita/personal - notas al margen, etiquetas de washi
+   tape, marcas de "esto es tuyo, lo estas construyendo tu" - nunca para
+   contenido oficial (ver identidad visual v2). */
+.manuscrita {
+  font-family: var(--fuente-manuscrita);
+  font-weight: 400;
 }
 
 button {
   font-family: var(--fuente-ui);
   font-weight: 600;
   font-size: 1rem;
-  color: var(--pergamino);
+  color: var(--papel);
   background: var(--tinta);
   border: none;
   border-radius: var(--radio);
@@ -73,30 +94,40 @@ button {
 }
 
 button:hover:not(:disabled) {
-  box-shadow: 0 2px 0 rgba(26, 42, 74, 0.15);
+  box-shadow: 0 2px 0 rgba(34, 56, 92, 0.15);
 }
 
-/* Efecto de "sello de cera haciendo contacto" - se hunde 1-2px al pulsar,
-   nunca glow ni bounce (ver principios de movimiento). */
+/* Efecto de "sello haciendo contacto" - se hunde 1-2px al pulsar, nunca
+   glow ni bounce (ver principios de movimiento). */
 button:active:not(:disabled) {
   transform: translateY(2px);
   box-shadow: none;
 }
 
 button:disabled {
-  background: var(--pergamino-hondo);
-  color: var(--desvanecido);
+  background: var(--papel-rayado);
+  color: var(--lapiz);
   cursor: not-allowed;
 }
 
+/* Borde tipo boceto (punteado, radio irregular) en vez de un control de
+   formulario prolijo - el elemento mas "web app generica" de la
+   pantalla necesitaba el mismo tratamiento que el resto (ver identidad
+   visual v2, ronda de ajuste). */
 button.secundario {
   background: transparent;
   color: var(--tinta);
-  border: 1.5px solid var(--tinta-suave);
+  border: 2px dashed var(--lapiz);
+  border-radius: 8px 10px 9px 11px;
+}
+
+button.secundario:hover:not(:disabled) {
+  border-color: var(--resaltador);
+  border-style: solid;
 }
 
 button.secundario:disabled {
-  border-color: var(--pergamino-hondo);
+  border-color: var(--papel-rayado);
 }
 
 input[type='email'],
@@ -107,20 +138,35 @@ input[type='file'] {
   font-size: 1rem;
   color: var(--tinta);
   background: #fff;
-  border: 1.5px solid var(--pergamino-hondo);
+  border: 1.5px solid var(--papel-rayado);
   border-radius: var(--radio);
   padding: 0.65em 0.9em;
 }
 
 input:focus-visible {
-  outline: 2px solid var(--vino);
+  outline: 2px solid var(--resaltador);
   outline-offset: 1px;
 }
 
+/* Esquina doblada, no un corte limpio - la textura de "algo hecho a
+   mano" tambien en los bordes de las superficies elevadas. */
 .tarjeta {
-  background: var(--pergamino-hondo);
+  position: relative;
+  background: var(--papel-rayado);
   border-radius: var(--radio);
   padding: 1.5rem;
+}
+
+.tarjeta::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, transparent 50%, var(--papel) 50%);
+  border-bottom-left-radius: 3px;
+  box-shadow: -1px 1px 2px rgba(34, 56, 92, 0.15);
 }
 
 a {

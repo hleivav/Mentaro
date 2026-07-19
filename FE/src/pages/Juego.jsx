@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useSesion } from '../hooks/useSesion'
 import { useProgresoDocumento } from '../hooks/useProgresoDocumento'
@@ -10,10 +10,15 @@ import { CaminoDeTinta } from '../components/CaminoDeTinta'
 import { IndiceIluminado } from '../components/IndiceIluminado'
 import { TiraSellos } from '../components/TiraSellos'
 import { GaleriaImagenes } from '../components/GaleriaImagenes'
+import { VueltaPagina } from '../components/VueltaPagina'
 import { useImagenesDocumento } from '../hooks/useImagenesDocumento'
 import { reproducirAcierto, reproducirError, reproducirPling, reproducirPlong } from '../lib/sonido'
 
 const SECCIONES_VACIO = []
+// Tiempo para "leer" el propio acierto antes de saltar a la siguiente
+// pregunta - antes avanzaba apenas se resolvia la mutacion y se sentia
+// demasiado rapido para registrar que se acerto.
+const PAUSA_ACIERTO_MS = 1600
 
 // GET /sesion no trae la seccion de la unidad activa - se busca en el
 // arbol ya cargado por /mapa en vez de agregar el campo al backend, para
@@ -39,11 +44,32 @@ export function Juego() {
   const [explicacionAlternativa, setExplicacionAlternativa] = useState(null)
   const [retroalimentacion, setRetroalimentacion] = useState(null)
   const [mensajeSegundoFallo, setMensajeSegundoFallo] = useState(false)
+  const [pausaAcierto, setPausaAcierto] = useState(false)
   const [mostrarIndice, setMostrarIndice] = useState(false)
   const [mostrarImagenes, setMostrarImagenes] = useState(false)
   const [sonidoActivado] = usePreferenciaSonido()
   const imagenesDocumento = useImagenesDocumento(documentoId)
   const hayImagenes = (imagenesDocumento.data?.length ?? 0) > 0
+
+  // avanzar (de useSesion) es una funcion nueva en cada render, no
+  // memoizada - guardarla en un ref evita que el efecto de abajo
+  // reinicie el temporizador cada vez que el componente vuelve a
+  // renderizar durante la pausa (lo cual nunca dejaria completarse la
+  // cuenta regresiva), sin dejar de llamar a la version mas reciente
+  // cuando el temporizador realmente vence.
+  const avanzarRef = useRef(avanzar)
+  useEffect(() => {
+    avanzarRef.current = avanzar
+  })
+
+  useEffect(() => {
+    if (!pausaAcierto) return undefined
+    const temporizador = setTimeout(() => {
+      setPausaAcierto(false)
+      avanzarRef.current()
+    }, PAUSA_ACIERTO_MS)
+    return () => clearTimeout(temporizador)
+  }, [pausaAcierto])
 
   // GET /sesion trae varios elementos por adelantado, pero solo el primero
   // esta activo (posicion_actual apunta ahi) - el resto es solo para que
@@ -67,6 +93,7 @@ export function Juego() {
     setExplicacionAlternativa(null)
     setRetroalimentacion(null)
     setMensajeSegundoFallo(false)
+    setPausaAcierto(false)
     if (sonidoActivado && unidadIdActiva) {
       if (tipoElementoActivo === 'nueva') reproducirPling()
       else reproducirPlong()
@@ -101,7 +128,9 @@ export function Juego() {
             // confirma con "Continuar" en vez de un salto automatico.
             setMensajeSegundoFallo(true)
           } else {
-            avanzar()
+            // Correcto (nueva a la primera, o repaso acertado): pausa
+            // breve antes de avanzar - ver PAUSA_ACIERTO_MS.
+            setPausaAcierto(true)
           }
         }
       }
@@ -181,7 +210,11 @@ export function Juego() {
       />
       <div className="camino-de-tinta-envoltura">
         <div className="camino-de-tinta-envoltura__cabecera">
-          {seccionActual && <p className="etiqueta">{tituloBreadcrumb(seccionActual, secciones)}</p>}
+          {seccionActual && (
+            <p className="manuscrita camino-de-tinta-envoltura__ubicacion">
+              {tituloBreadcrumb(seccionActual, secciones)}
+            </p>
+          )}
           {!esNueva && <span className="camino-de-tinta-envoltura__repaso">↺ Repaso</span>}
         </div>
         <CaminoDeTinta
@@ -200,15 +233,17 @@ export function Juego() {
         Elegir más secciones
       </Link>
 
-      {esNueva && (
-        <ExplicacionUnidad titulo={elemento.titulo} explicacion={explicacionAlternativa ?? elemento.explicacion} />
-      )}
-      <PreguntaOpcionMultiple
-        pregunta={elemento.pregunta}
-        onResponder={manejarRespuesta}
-        deshabilitado={responder.isPending || mensajeSegundoFallo}
-        retroalimentacion={retroalimentacion}
-      />
+      <VueltaPagina claveContenido={`${unidadIdActiva}-${tipoElementoActivo}`}>
+        {esNueva && (
+          <ExplicacionUnidad titulo={elemento.titulo} explicacion={explicacionAlternativa ?? elemento.explicacion} />
+        )}
+        <PreguntaOpcionMultiple
+          pregunta={elemento.pregunta}
+          onResponder={manejarRespuesta}
+          deshabilitado={responder.isPending || mensajeSegundoFallo || pausaAcierto}
+          retroalimentacion={retroalimentacion}
+        />
+      </VueltaPagina>
 
       {mensajeSegundoFallo && (
         <div className="tarjeta juego__mensaje-segundo-fallo">
