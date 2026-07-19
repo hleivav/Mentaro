@@ -11,7 +11,9 @@ import com.mentaro.backend.entity.Unidad;
 import com.mentaro.backend.repository.DocumentoRepository;
 import com.mentaro.backend.repository.SeccionRepository;
 import com.mentaro.backend.repository.UnidadRepository;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -66,6 +68,18 @@ public class PasadaAService {
                 - importante: enriquece la comprensión, no es indispensable
                 - detalle: dato secundario, anécdota, profundización opcional
             - "depende_de": ids de otras unidades que asume conocidas
+            - "imagenes_asociadas": ver "IMÁGENES DEL DOCUMENTO" abajo (opcional)
+
+            IMÁGENES DEL DOCUMENTO
+            El texto fuente puede contener marcadores como
+            "[Descripción de imagen #<uuid>: <descripción>]" en los puntos
+            donde el documento original tenía una imagen embebida — son
+            descripciones generadas automáticamente a partir de la imagen,
+            no texto del autor. Si el contenido del que sale una unidad
+            incluye uno o más de estos marcadores, agregá esos uuids (SOLO
+            el uuid, no el marcador completo ni la descripción) en
+            "imagenes_asociadas": ["<uuid1>", "<uuid2>"]. Si la unidad no
+            tiene ninguna imagen asociada, omití el campo o dejalo vacío.
 
             COBERTURA MÍNIMA POR SECCIÓN
             Por cada nodo hoja, apuntá a identificar al menos ~4 unidades de
@@ -158,6 +172,7 @@ public class PasadaAService {
                         u.titulo(),
                         TipoContenido.valueOf(u.tipoContenido().toUpperCase()),
                         NivelImportancia.valueOf(u.nivelImportancia().toUpperCase()));
+                unidad.setImagenesAsociadas(imagenesAsociadasValidas(u.titulo(), u.imagenesAsociadas()));
                 unidadesPorIdIa.put(u.id(), unidadRepository.save(unidad));
             } catch (IllegalArgumentException | NullPointerException e) {
                 log.warn(
@@ -180,6 +195,25 @@ public class PasadaAService {
 
         documento.setEstado(EstadoDocumento.MAPEADO);
         documentoRepository.save(documento);
+    }
+
+    // Ids ya reales (los genera DescriptorImagenesPdf, no strings inventados
+    // por el modelo como los de seccion_id/depende_de) - no necesitan
+    // mapeo, solo parseo tolerante: un uuid mal formado o inventado se
+    // descarta sin tumbar el resto de la unidad.
+    private UUID[] imagenesAsociadasValidas(String tituloUnidad, List<String> imagenesAsociadas) {
+        if (imagenesAsociadas == null || imagenesAsociadas.isEmpty()) {
+            return new UUID[0];
+        }
+        List<UUID> validas = new ArrayList<>();
+        for (String id : imagenesAsociadas) {
+            try {
+                validas.add(UUID.fromString(id));
+            } catch (IllegalArgumentException | NullPointerException e) {
+                log.warn("Unidad '{}': imagen_asociada '{}' descartada, no es un uuid valido", tituloUnidad, id);
+            }
+        }
+        return validas.toArray(UUID[]::new);
     }
 
     private MapaDocumento parsear(String json) {

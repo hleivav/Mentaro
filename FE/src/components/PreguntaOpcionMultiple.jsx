@@ -1,4 +1,5 @@
 import { MarcaCasilla } from './MarcaCasilla'
+import { ImagenPregunta } from './ImagenPregunta'
 
 // retroalimentacion: { indice, correcto } | null - la unica alternativa
 // que se marca es la que el usuario efectivamente eligio. El trazo de
@@ -8,10 +9,11 @@ import { MarcaCasilla } from './MarcaCasilla'
 // distingue bien rojo/verde. El icono vive en la casilla dibujada a
 // mano (ver identidad visual v2 - las alternativas son lineas de hoja
 // rayada con una casilla, no botones de formulario genericos).
-export function PreguntaOpcionMultiple({ pregunta, onResponder, deshabilitado, retroalimentacion }) {
+export function PreguntaOpcionMultiple({ pregunta, onResponder, deshabilitado, retroalimentacion, documentoId }) {
   return (
     <div className="pregunta-opcion-multiple">
       <p>{pregunta.enunciado}</p>
+      <ImagenPregunta documentoId={documentoId} imagenId={pregunta.imagen_id} />
       <ul>
         {pregunta.alternativas.map((alternativa, indice) => {
           const marcada = retroalimentacion?.indice === indice

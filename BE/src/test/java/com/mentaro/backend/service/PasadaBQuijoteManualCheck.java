@@ -132,16 +132,17 @@ class PasadaBQuijoteManualCheck {
         assertThat(generadas + fallidaPersistida + fallidaExcluida).isEqualTo(declarativas.size());
     }
 
+    // Formateo generico por Map, no un record de esquema fijo - la pregunta
+    // puede ser opcion_multiple, ordenar o emparejar (ver PasadaBService),
+    // y este reporte es solo para revision humana, no para un assert.
+    @SuppressWarnings("unchecked")
     private String formatearPregunta(String json) {
         if (json == null) {
             return "(null)";
         }
         try {
-            var pregunta = objectMapper.readValue(json, PreguntaAlmacenada.class);
-            return "\n    enunciado: " + pregunta.enunciado()
-                    + "\n    alternativas: " + pregunta.alternativas()
-                    + "\n    correcta_index: " + pregunta.correctaIndex()
-                    + " (" + pregunta.alternativas().get(pregunta.correctaIndex()) + ")";
+            var pregunta = (java.util.Map<String, Object>) objectMapper.readValue(json, java.util.Map.class);
+            return "\n    " + pregunta;
         } catch (Exception e) {
             return "(no se pudo parsear: " + json + ")";
         }

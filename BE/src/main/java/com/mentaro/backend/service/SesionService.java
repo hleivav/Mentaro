@@ -241,6 +241,7 @@ public class SesionService {
                 elemento.getTipoElemento().name().toLowerCase(),
                 esNueva ? unidad.getTitulo() : null,
                 esNueva ? unidad.getExplicacionCorta() : null,
+                esNueva ? List.of(unidad.getImagenesAsociadas()) : List.of(),
                 redactar(pregunta));
     }
 

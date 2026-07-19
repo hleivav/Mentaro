@@ -294,6 +294,31 @@ class SesionServiceTests {
     }
 
     @Test
+    void exponeImagenesAsociadasSoloParaElementosNuevosNoParaRefuerzo() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-imgses", "imgses@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.LISTO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        java.util.UUID imagenId = java.util.UUID.randomUUID();
+        Unidad unidad = crearUnidad(documento, seccion, 1);
+        unidad.setImagenesAsociadas(new java.util.UUID[] {imagenId});
+        unidad = unidadRepository.save(unidad);
+        secuenciaTableroRepository.save(new SecuenciaTablero(documento, 100, unidad, TipoElemento.NUEVA));
+
+        SesionResponse sesionNueva = sesionService.obtenerSesion(usuario, documento.getId());
+        assertThat(sesionNueva.elementos().getFirst().imagenesAsociadas()).containsExactly(imagenId);
+
+        secuenciaTableroRepository.deleteAll();
+        secuenciaTableroRepository.save(new SecuenciaTablero(documento, 200, unidad, TipoElemento.REFUERZO));
+        ProgresoUsuario progreso = progresoUsuarioRepository
+                .findByUsuario_IdAndDocumento_Id(usuario.getId(), documento.getId()).orElseThrow();
+        progreso.setPosicionActual(200);
+        progresoUsuarioRepository.save(progreso);
+
+        SesionResponse sesionRefuerzo = sesionService.obtenerSesion(usuario, documento.getId());
+        assertThat(sesionRefuerzo.elementos().getFirst().imagenesAsociadas()).isEmpty();
+    }
+
+    @Test
     void responderConTipoPreguntaQueNoCoincideConElAlmacenadoEsConflicto() {
         Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-tipo-mismatch", "tipo-mismatch@example.com"));
         Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.LISTO));

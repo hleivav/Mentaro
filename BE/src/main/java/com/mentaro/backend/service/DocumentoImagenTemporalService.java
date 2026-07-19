@@ -30,7 +30,8 @@ public class DocumentoImagenTemporalService {
         int orden = 0;
         for (DescriptorImagenesPdf.ImagenDescrita imagen : imagenes) {
             repository.save(new DocumentoImagenTemporal(
-                    documentoId, imagen.pagina(), orden++, imagen.descripcion(), imagen.pngBytes(), MEDIA_TYPE_PNG));
+                    imagen.id(), documentoId, imagen.pagina(), orden++, imagen.descripcion(), imagen.pngBytes(),
+                    MEDIA_TYPE_PNG, imagen.esEsencial()));
         }
     }
 

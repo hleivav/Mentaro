@@ -242,14 +242,20 @@ export function Juego() {
 
       <VueltaPagina claveContenido={`${unidadIdActiva}-${tipoElementoActivo}`}>
         {esNueva && (
-          <ExplicacionUnidad titulo={elemento.titulo} explicacion={explicacionAlternativa ?? elemento.explicacion} />
+          <ExplicacionUnidad
+            titulo={elemento.titulo}
+            explicacion={explicacionAlternativa ?? elemento.explicacion}
+            documentoId={documentoId}
+            imagenesAsociadas={elemento.imagenes_asociadas}
+          />
         )}
         {(() => {
           const props = {
             pregunta: elemento.pregunta,
             onResponder: manejarRespuesta,
             deshabilitado: responder.isPending || mensajeSegundoFallo || pausaAcierto,
-            retroalimentacion
+            retroalimentacion,
+            documentoId
           }
           // key={intentoNumero}: en ordenar/emparejar el estado de la
           // seleccion vive en el propio componente (no en Juego) - forzar un

@@ -86,7 +86,7 @@ class DocumentoEliminacionServiceTests {
         resultadoUnidadRepository.save(new ResultadoUnidad(usuario, unidad, EstadoResultado.DOMINADA));
         textoTemporalService.guardar(documento.getId(), "texto de prueba");
         imagenTemporalService.guardar(documento.getId(),
-                java.util.List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "desc", new byte[] {1})));
+                java.util.List.of(new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "desc", new byte[] {1}, false)));
 
         UUID documentoId = documento.getId();
         UUID unidadId = unidad.getId();

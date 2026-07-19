@@ -8,6 +8,8 @@ import java.util.UUID;
 // la Pasada A) mas el texto fuente correspondiente.
 record SolicitudPasadaB(String textoFuente, List<UnidadEntrada> unidades) {
 
-    record UnidadEntrada(UUID id, String titulo, UUID seccionId, String tipoContenido, List<UUID> dependeDe) {
+    record UnidadEntrada(
+            UUID id, String titulo, UUID seccionId, String tipoContenido, List<UUID> dependeDe,
+            List<UUID> imagenesEsenciales) {
     }
 }

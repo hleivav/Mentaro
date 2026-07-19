@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import javax.imageio.ImageIO;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -46,6 +47,8 @@ public class DescriptorImagenesPdf {
     private static final String MARCADOR_RELEVANCIA = "RELEVANCIA:";
     private static final String MARCADOR_DECORATIVO = "DECORATIVO";
     private static final String MARCADOR_DESCRIPCION = "DESCRIPCION:";
+    private static final String MARCADOR_ESENCIAL = "ESENCIAL:";
+    private static final String MARCADOR_SI = "SI";
 
     private static final String PROMPT = """
             Este es un fragmento de un documento educativo. Usa el texto de
@@ -59,9 +62,15 @@ public class DescriptorImagenesPdf {
             que aloja el documento). Si tenés dudas, preferí "relevante"
             antes que descartar contenido útil.
 
+            Si es relevante, además decidí si es "esencial" (el concepto no
+            se puede entender ni evaluar sin verla, ej. el diagrama de una
+            situación de tránsito en un manual de conducir) o "ilustrativa"
+            (complementa el texto, pero el texto ya explica todo sin ella).
+
             Respondé EXACTAMENTE en este formato, sin texto adicional:
 
             RELEVANCIA: relevante | decorativo
+            ESENCIAL: si | no
             DESCRIPCION: <si es relevante, describí brevemente qué muestra
             la imagen y qué concepto explica dentro de ese contexto, en 2-4
             líneas, sin describir el estilo visual ni el diseño. Si es
@@ -113,7 +122,9 @@ public class DescriptorImagenesPdf {
                             imagen.pagina() + 1);
                     continue;
                 }
-                resultado.add(new ImagenDescrita(imagen.pagina(), extraerDescripcion(respuesta), imagen.pngBytes()));
+                resultado.add(new ImagenDescrita(
+                        UUID.randomUUID(), imagen.pagina(), extraerDescripcion(respuesta), imagen.pngBytes(),
+                        esEsencial(respuesta)));
             } catch (Exception e) {
                 // Una imagen puntual que falla (red, formato raro, etc.) no
                 // debe tumbar la ingesta completa del documento.
@@ -146,7 +157,25 @@ public class DescriptorImagenesPdf {
         return respuesta.substring(indice + MARCADOR_DESCRIPCION.length()).strip();
     }
 
-    public record ImagenDescrita(int pagina, String descripcion, byte[] pngBytes) {
+    // Parseo defensivo, pero al reves de esDecorativa a proposito: ante un
+    // formato inesperado, se prefiere "no esencial" (falla cerrado) - una
+    // imagen mal marcada como esencial forzaria a la Pasada B a referenciarla
+    // desde una pregunta sin necesidad real, mientras que "no esencial" en
+    // el peor caso solo la deja disponible unicamente desde la explicacion.
+    private boolean esEsencial(String respuesta) {
+        String lineaEsencial = respuesta.lines()
+                .filter(linea -> linea.toUpperCase(Locale.ROOT).contains(MARCADOR_ESENCIAL))
+                .findFirst()
+                .orElse("");
+        int indice = lineaEsencial.toUpperCase(Locale.ROOT).indexOf(MARCADOR_ESENCIAL);
+        if (indice < 0) {
+            return false;
+        }
+        return lineaEsencial.substring(indice + MARCADOR_ESENCIAL.length()).strip().toUpperCase(Locale.ROOT)
+                .startsWith(MARCADOR_SI);
+    }
+
+    public record ImagenDescrita(UUID id, int pagina, String descripcion, byte[] pngBytes, boolean esEsencial) {
     }
 
     private List<ImagenConPagina> extraerCandidatas(PDDocument pdf) throws IOException {

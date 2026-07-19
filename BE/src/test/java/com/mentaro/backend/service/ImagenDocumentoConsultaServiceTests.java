@@ -36,7 +36,7 @@ class ImagenDocumentoConsultaServiceTests {
         Usuario dueno = usuarioRepository.save(new Usuario("firebase-uid-imgc-dueno-" + UUID.randomUUID(), "d@example.com"));
         Documento documento = documentoRepository.save(new Documento(dueno, "Doc", EstadoDocumento.LISTO));
         imagenTemporalService.guardar(documento.getId(),
-                List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "un diagrama", new byte[] {1})));
+                List.of(new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "un diagrama", new byte[] {1}, false)));
 
         List<ImagenDocumentoDTO> imagenes = imagenDocumentoConsultaService.listar(dueno, documento.getId());
 
@@ -63,7 +63,7 @@ class ImagenDocumentoConsultaServiceTests {
         Usuario otro = usuarioRepository.save(new Usuario("firebase-uid-imgc-otro2-" + UUID.randomUUID(), "o2@example.com"));
         Documento documento = documentoRepository.save(new Documento(dueno, "Doc", EstadoDocumento.LISTO));
         imagenTemporalService.guardar(documento.getId(),
-                List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "desc", new byte[] {1})));
+                List.of(new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "desc", new byte[] {1}, false)));
         UUID imagenId = imagenTemporalService.listar(documento.getId()).getFirst().getId();
 
         assertThatThrownBy(() -> imagenDocumentoConsultaService.obtener(otro, documento.getId(), imagenId))
@@ -76,7 +76,7 @@ class ImagenDocumentoConsultaServiceTests {
         Usuario dueno = usuarioRepository.save(new Usuario("firebase-uid-imgc-dueno4-" + UUID.randomUUID(), "d4@example.com"));
         Documento documento = documentoRepository.save(new Documento(dueno, "Doc", EstadoDocumento.LISTO));
         imagenTemporalService.guardar(documento.getId(),
-                List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "desc", new byte[] {5, 6})));
+                List.of(new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "desc", new byte[] {5, 6}, false)));
         UUID imagenId = imagenTemporalService.listar(documento.getId()).getFirst().getId();
 
         DocumentoImagenTemporal imagen = imagenDocumentoConsultaService.obtener(dueno, documento.getId(), imagenId);

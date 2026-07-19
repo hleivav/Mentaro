@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ImagenPregunta } from './ImagenPregunta'
 
 // Tocar izquierda, despues tocar derecha (ver decision de interaccion):
 // se toca un elemento de la izquierda para "activarlo", despues uno de
@@ -6,7 +7,7 @@ import { useState } from 'react'
 // libera ambos elementos. Los pares se mandan como [indice_izquierda,
 // indice_derecha] - el orden de los pares entre si no importa (ver
 // SesionService.aConjuntoDePares), solo el conjunto.
-export function Emparejar({ pregunta, onResponder, deshabilitado, retroalimentacion }) {
+export function Emparejar({ pregunta, onResponder, deshabilitado, retroalimentacion, documentoId }) {
   const [pares, setPares] = useState([])
   const [izquierdaActiva, setIzquierdaActiva] = useState(null)
 
@@ -55,6 +56,7 @@ export function Emparejar({ pregunta, onResponder, deshabilitado, retroalimentac
   return (
     <div className={`emparejar ${claseRetro}`}>
       <p>{pregunta.enunciado}</p>
+      <ImagenPregunta documentoId={documentoId} imagenId={pregunta.imagen_id} />
 
       <div className="emparejar__columnas">
         <ul className="emparejar__columna">

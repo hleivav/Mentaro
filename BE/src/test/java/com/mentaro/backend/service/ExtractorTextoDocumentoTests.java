@@ -59,10 +59,14 @@ class ExtractorTextoDocumentoTests {
         ExtractorTextoDocumento.ResultadoExtraccion resultado = extractor.extraer(archivo);
 
         assertThat(resultado.texto()).contains("En un lugar de la Mancha");
-        assertThat(resultado.texto()).contains("[Descripción de imagen: Un molino de viento junto a un camino.]");
         assertThat(resultado.imagenes()).singleElement().satisfies(imagen -> {
             assertThat(imagen.descripcion()).isEqualTo("Un molino de viento junto a un camino.");
             assertThat(imagen.pngBytes()).isNotEmpty();
+            // El marcador insertado en el texto lleva el mismo uuid que la
+            // imagen persistida - eso es lo que permite despues asociarla a
+            // una unidad especifica (ver PasadaAService).
+            assertThat(resultado.texto()).contains(
+                    "[Descripción de imagen #" + imagen.id() + ": Un molino de viento junto a un camino.]");
         });
         // El contexto mandado al modelo debe incluir el texto de la misma
         // pagina, no la imagen aislada (confirmado con prueba manual que

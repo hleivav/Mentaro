@@ -60,6 +60,16 @@ public class Unidad {
     @Column(name = "depende_de", columnDefinition = "uuid[]")
     private UUID[] dependeDe = new UUID[0];
 
+    // Ids de DocumentoImagenTemporal que corresponden a esta unidad - la
+    // Pasada A las detecta por los marcadores "[Descripcion de imagen
+    // #<uuid>: ...]" que caen dentro del texto fuente de la unidad (ver
+    // PasadaAService). Puede incluir imagenes esenciales y decorativas
+    // por igual; PasadaBService filtra las esenciales al construir el
+    // prompt de generacion de preguntas.
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "imagenes_asociadas", columnDefinition = "uuid[]")
+    private UUID[] imagenesAsociadas = new UUID[0];
+
     // null hasta que corre la Pasada B. GENERADA = paso la validacion;
     // FALLIDA_PERSISTIDA = unidad esencial, se guardo contenido igual pese a
     // fallar la validacion (para no dejar un hueco en algo indispensable);
@@ -152,5 +162,13 @@ public class Unidad {
 
     public void setDependeDe(UUID[] dependeDe) {
         this.dependeDe = dependeDe;
+    }
+
+    public UUID[] getImagenesAsociadas() {
+        return imagenesAsociadas;
+    }
+
+    public void setImagenesAsociadas(UUID[] imagenesAsociadas) {
+        this.imagenesAsociadas = imagenesAsociadas;
     }
 }

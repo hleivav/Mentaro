@@ -3,6 +3,7 @@ package com.mentaro.backend.service;
 import com.mentaro.backend.deepseek.DeepSeekClient;
 import com.mentaro.backend.deepseek.DeepSeekOpciones;
 import com.mentaro.backend.entity.Documento;
+import com.mentaro.backend.entity.DocumentoImagenTemporal;
 import com.mentaro.backend.entity.EstadoDocumento;
 import com.mentaro.backend.entity.EstadoGeneracion;
 import com.mentaro.backend.entity.NivelImportancia;
@@ -14,12 +15,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -76,9 +80,25 @@ public class PasadaBService {
     private static final String PROMPT_SISTEMA = """
             Eres un diseñador instruccional. Recibirás una lista de unidades de
             aprendizaje ya segmentadas y clasificadas (id, titulo, seccion_id,
-            tipo_contenido, depende_de) junto con el texto fuente correspondiente.
-            Genera el contenido completo SOLO para las unidades cuyo
-            tipo_contenido sea "declarativo".
+            tipo_contenido, depende_de, imagenes_esenciales) junto con el texto
+            fuente correspondiente. Genera el contenido completo SOLO para las
+            unidades cuyo tipo_contenido sea "declarativo".
+
+            IMÁGENES ESENCIALES
+            Algunas unidades traen "imagenes_esenciales": una lista de uuids de
+            imágenes del documento ya confirmadas como imprescindibles para
+            entender el concepto (ej. el diagrama de una situación de tránsito
+            en un manual de conducir — sin verlo, la pregunta no se puede
+            responder). El texto fuente ya incluye la descripción de esas
+            imágenes en línea, como "[Descripción de imagen #<uuid>: ...]".
+            Si, y solo si, la PREGUNTA (no solo la explicación) realmente
+            necesita que el usuario vea esa imagen para responder, agregá
+            "imagen_id": "<uuid>" al objeto de la pregunta (en cualquiera de
+            las mecánicas de abajo), usando exactamente uno de los uuids
+            listados en imagenes_esenciales de esa unidad. Nunca inventes un
+            uuid que no esté en esa lista, y nunca lo agregues si la unidad no
+            tiene imagenes_esenciales o si el texto ya alcanza para responder
+            sin ver la imagen — es la excepción, no la norma.
 
             Para cada una, genera:
             - "explicacion_corta": 3-4 líneas, lenguaje simple, sin jerga
@@ -144,6 +164,9 @@ public class PasadaBService {
                estudió la explicación corta; si la pregunta exige algo que
                no está ahí, no hay forma de responder por conocimiento
                genuino, solo por descarte o suerte.
+            C. "imagen_id" es opcional y solo va en imagenes_esenciales de
+               esa misma unidad (ver "IMÁGENES ESENCIALES" arriba) — nunca
+               un uuid de otra unidad ni inventado.
 
             REGLAS PARA "opcion_multiple"
             1. Los distractores deben ser errores plausibles — algo que
@@ -189,6 +212,7 @@ public class PasadaBService {
     private final DocumentoRepository documentoRepository;
     private final UnidadRepository unidadRepository;
     private final SecuenciaTableroService secuenciaTableroService;
+    private final DocumentoImagenTemporalService imagenTemporalService;
     private final ObjectMapper objectMapper;
     private final String modeloPasadaB;
     private final String modeloEscalado;
@@ -198,6 +222,7 @@ public class PasadaBService {
             DocumentoRepository documentoRepository,
             UnidadRepository unidadRepository,
             SecuenciaTableroService secuenciaTableroService,
+            DocumentoImagenTemporalService imagenTemporalService,
             ObjectMapper objectMapper,
             @Value("${app.deepseek.modelo-pasada-b}") String modeloPasadaB,
             @Value("${app.deepseek.modelo-pasada-b-escalado}") String modeloEscalado) {
@@ -205,6 +230,7 @@ public class PasadaBService {
         this.documentoRepository = documentoRepository;
         this.unidadRepository = unidadRepository;
         this.secuenciaTableroService = secuenciaTableroService;
+        this.imagenTemporalService = imagenTemporalService;
         this.objectMapper = objectMapper;
         this.modeloPasadaB = modeloPasadaB;
         this.modeloEscalado = modeloEscalado;
@@ -246,11 +272,15 @@ public class PasadaBService {
         Map<UUID, Unidad> unidadesPorId = new HashMap<>();
         declarativas.forEach(u -> unidadesPorId.put(u.getId(), u));
 
-        Map<UUID, ContenidoGenerado.UnidadGenerada> generado = generar(modeloPasadaB, declarativas, textoFuente);
+        Map<UUID, Set<UUID>> imagenesEsencialesPorUnidad = imagenesEsencialesPorUnidad(documento, declarativas);
+
+        Map<UUID, ContenidoGenerado.UnidadGenerada> generado =
+                generar(modeloPasadaB, declarativas, textoFuente, imagenesEsencialesPorUnidad);
 
         List<UUID> fallidas = new ArrayList<>();
         for (Unidad unidad : declarativas) {
-            List<String> razones = razonesInvalidez(generado.get(unidad.getId()), textoFuente);
+            List<String> razones = razonesInvalidez(
+                    generado.get(unidad.getId()), textoFuente, imagenesEsencialesPorUnidad.get(unidad.getId()));
             if (!razones.isEmpty()) {
                 fallidas.add(unidad.getId());
                 log.info("Unidad {} ({}) fallo la validacion con {}: {}",
@@ -262,7 +292,7 @@ public class PasadaBService {
             log.warn("{} unidad(es) fallaron la validacion con {}, reintentando con {}: {}",
                     fallidas.size(), modeloPasadaB, modeloEscalado, fallidas);
             List<Unidad> unidadesAReintentar = fallidas.stream().map(unidadesPorId::get).toList();
-            generado.putAll(generar(modeloEscalado, unidadesAReintentar, textoFuente));
+            generado.putAll(generar(modeloEscalado, unidadesAReintentar, textoFuente, imagenesEsencialesPorUnidad));
         }
 
         // Nunca dejar contenido que fallo la propia validacion en el juego:
@@ -274,7 +304,8 @@ public class PasadaBService {
         // vez de perderse en el log.
         for (Unidad unidad : declarativas) {
             ContenidoGenerado.UnidadGenerada contenido = generado.get(unidad.getId());
-            List<String> razones = razonesInvalidez(contenido, textoFuente);
+            List<String> razones = razonesInvalidez(
+                    contenido, textoFuente, imagenesEsencialesPorUnidad.get(unidad.getId()));
 
             if (razones.isEmpty()) {
                 asignar(unidad, aleatorizarPosiciones(contenido), EstadoGeneracion.GENERADA);
@@ -358,8 +389,33 @@ public class PasadaBService {
         return resultado;
     }
 
-    private Map<UUID, ContenidoGenerado.UnidadGenerada> generar(String modelo, List<Unidad> unidades, String textoFuente) {
-        String promptUsuario = construirPromptUsuario(unidades, textoFuente);
+    // Que imagenes de cada unidad ya estan confirmadas como esenciales (ver
+    // DescriptorImagenesPdf) - una sola consulta para todo el documento, no
+    // una por unidad, evitando N+1. Unidad.imagenesAsociadas puede incluir
+    // imagenes decorativas tambien; aca se filtran a solo las esenciales,
+    // que son las unicas que la Pasada B puede ofrecer para "imagen_id".
+    private Map<UUID, Set<UUID>> imagenesEsencialesPorUnidad(Documento documento, List<Unidad> unidades) {
+        Set<UUID> esencialesDelDocumento = imagenTemporalService.listar(documento.getId()).stream()
+                .filter(DocumentoImagenTemporal::isEsEsencial)
+                .map(DocumentoImagenTemporal::getId)
+                .collect(Collectors.toSet());
+
+        Map<UUID, Set<UUID>> resultado = new HashMap<>();
+        for (Unidad unidad : unidades) {
+            Set<UUID> esencialesDeLaUnidad = new HashSet<>();
+            for (UUID imagenId : unidad.getImagenesAsociadas()) {
+                if (esencialesDelDocumento.contains(imagenId)) {
+                    esencialesDeLaUnidad.add(imagenId);
+                }
+            }
+            resultado.put(unidad.getId(), esencialesDeLaUnidad);
+        }
+        return resultado;
+    }
+
+    private Map<UUID, ContenidoGenerado.UnidadGenerada> generar(
+            String modelo, List<Unidad> unidades, String textoFuente, Map<UUID, Set<UUID>> imagenesEsencialesPorUnidad) {
+        String promptUsuario = construirPromptUsuario(unidades, textoFuente, imagenesEsencialesPorUnidad);
         DeepSeekOpciones opciones = DeepSeekOpciones.conThinking(modelo, REASONING_EFFORT);
         String respuestaJson = deepSeekClient.completar(opciones, PROMPT_SISTEMA, promptUsuario);
 
@@ -369,14 +425,16 @@ public class PasadaBService {
         return porId;
     }
 
-    private String construirPromptUsuario(List<Unidad> unidades, String textoFuente) {
+    private String construirPromptUsuario(
+            List<Unidad> unidades, String textoFuente, Map<UUID, Set<UUID>> imagenesEsencialesPorUnidad) {
         List<SolicitudPasadaB.UnidadEntrada> entradas = unidades.stream()
                 .map(u -> new SolicitudPasadaB.UnidadEntrada(
                         u.getId(),
                         u.getTitulo(),
                         u.getSeccion().getId(),
                         u.getTipoContenido().name().toLowerCase(Locale.ROOT),
-                        List.of(u.getDependeDe())))
+                        List.of(u.getDependeDe()),
+                        List.copyOf(imagenesEsencialesPorUnidad.getOrDefault(u.getId(), Set.of()))))
                 .toList();
         return objectMapper.writeValueAsString(new SolicitudPasadaB(textoFuente, entradas));
     }
@@ -387,29 +445,57 @@ public class PasadaBService {
     // "confundible" (reglas 1 y 8 del prompt) queda fuera de lo que un
     // chequeo mecanico puede verificar - eso sigue siendo responsabilidad
     // del modelo via prompt, igual que ya pasaba con opcion_multiple.
-    private List<String> razonesInvalidez(ContenidoGenerado.UnidadGenerada contenido, String textoFuente) {
+    private List<String> razonesInvalidez(
+            ContenidoGenerado.UnidadGenerada contenido, String textoFuente, Set<UUID> imagenesEsencialesValidas) {
         if (contenido == null) {
             return List.of("sin contenido generado por el modelo");
         }
+        Set<UUID> validas = imagenesEsencialesValidas == null ? Set.of() : imagenesEsencialesValidas;
         List<String> razones = new ArrayList<>();
-        razones.addAll(razonesInvalidezPregunta("reconocimiento", contenido.preguntaReconocimiento(), textoFuente));
-        razones.addAll(razonesInvalidezPregunta("refuerzo", contenido.preguntaRefuerzo(), textoFuente));
+        razones.addAll(razonesInvalidezPregunta(
+                "reconocimiento", contenido.preguntaReconocimiento(), textoFuente, validas));
+        razones.addAll(razonesInvalidezPregunta("refuerzo", contenido.preguntaRefuerzo(), textoFuente, validas));
         return razones;
     }
 
-    private List<String> razonesInvalidezPregunta(String etiqueta, Map<String, Object> pregunta, String textoFuente) {
+    private List<String> razonesInvalidezPregunta(
+            String etiqueta, Map<String, Object> pregunta, String textoFuente, Set<UUID> imagenesEsencialesValidas) {
         if (pregunta == null) {
             return List.of(etiqueta + ": sin pregunta generada");
         }
         if (!(pregunta.get("tipo") instanceof String tipo)) {
             return List.of(etiqueta + ": sin campo 'tipo' valido");
         }
-        return switch (tipo) {
+        List<String> razones = new ArrayList<>(switch (tipo) {
             case "opcion_multiple" -> razonesInvalidezOpcionMultiple(etiqueta, pregunta, textoFuente);
             case "ordenar" -> razonesInvalidezOrdenar(etiqueta, pregunta);
             case "emparejar" -> razonesInvalidezEmparejar(etiqueta, pregunta);
             default -> List.of(etiqueta + ": tipo de pregunta desconocido '" + tipo + "'");
-        };
+        });
+        razones.addAll(razonesInvalidezImagenId(etiqueta, pregunta, imagenesEsencialesValidas));
+        return razones;
+    }
+
+    // "imagen_id" es de las tres mecanicas por igual (regla general C) - se
+    // valida aparte del resto de reglas especificas por tipo. Un uuid mal
+    // formado o que no esta entre las imagenes_esenciales ofrecidas para esa
+    // unidad es una alucinacion del modelo, no un dato confiable.
+    private List<String> razonesInvalidezImagenId(
+            String etiqueta, Map<String, Object> pregunta, Set<UUID> imagenesEsencialesValidas) {
+        Object imagenId = pregunta.get("imagen_id");
+        if (imagenId == null) {
+            return List.of();
+        }
+        UUID id;
+        try {
+            id = UUID.fromString(String.valueOf(imagenId));
+        } catch (IllegalArgumentException e) {
+            return List.of(etiqueta + ": imagen_id '" + imagenId + "' no es un uuid valido");
+        }
+        if (!imagenesEsencialesValidas.contains(id)) {
+            return List.of(etiqueta + ": imagen_id '" + id + "' no esta entre las imagenes_esenciales de la unidad");
+        }
+        return List.of();
     }
 
     @SuppressWarnings("unchecked")

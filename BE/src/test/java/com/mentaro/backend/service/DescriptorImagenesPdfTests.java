@@ -144,6 +144,70 @@ class DescriptorImagenesPdfTests {
     }
 
     @Test
+    void marcaEsencialCuandoElModeloLoIndica() throws IOException {
+        when(anthropicClient.describirImagen(any(), anyString(), anyString()))
+                .thenReturn("RELEVANCIA: relevante\nESENCIAL: si\nDESCRIPCION: Cruce con prioridad de paso.");
+        try (PDDocument pdf = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            pdf.addPage(pagina);
+            agregarImagen(pdf, pagina, 200, 200);
+
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
+
+            assertThat(resultado).singleElement().satisfies(imagen -> assertThat(imagen.esEsencial()).isTrue());
+        }
+    }
+
+    @Test
+    void noMarcaEsencialCuandoElModeloDiceQueNo() throws IOException {
+        when(anthropicClient.describirImagen(any(), anyString(), anyString()))
+                .thenReturn("RELEVANCIA: relevante\nESENCIAL: no\nDESCRIPCION: Una ilustracion decorativa del tema.");
+        try (PDDocument pdf = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            pdf.addPage(pagina);
+            agregarImagen(pdf, pagina, 200, 200);
+
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
+
+            assertThat(resultado).singleElement().satisfies(imagen -> assertThat(imagen.esEsencial()).isFalse());
+        }
+    }
+
+    @Test
+    void siElModeloNoSigueElFormatoEsperadoNoMarcaEsencialPorDefecto() throws IOException {
+        // Parseo defensivo al reves de la relevancia a proposito: ante un
+        // formato inesperado se prefiere "no esencial" (falla cerrado) - ver
+        // comentario en DescriptorImagenesPdf.esEsencial.
+        when(anthropicClient.describirImagen(any(), anyString(), anyString()))
+                .thenReturn("Un diagrama sin el formato pedido.");
+        try (PDDocument pdf = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            pdf.addPage(pagina);
+            agregarImagen(pdf, pagina, 200, 200);
+
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
+
+            assertThat(resultado).singleElement().satisfies(imagen -> assertThat(imagen.esEsencial()).isFalse());
+        }
+    }
+
+    @Test
+    void cadaImagenRecibeUnIdUnico() throws IOException {
+        when(anthropicClient.describirImagen(any(), anyString(), anyString())).thenReturn("descripcion");
+        try (PDDocument pdf = new PDDocument()) {
+            PDPage pagina = new PDPage();
+            pdf.addPage(pagina);
+            agregarImagen(pdf, pagina, 200, 200);
+            agregarImagen(pdf, pagina, 190, 190);
+
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
+
+            assertThat(resultado).extracting(DescriptorImagenesPdf.ImagenDescrita::id).doesNotHaveDuplicates();
+            assertThat(resultado).allSatisfy(imagen -> assertThat(imagen.id()).isNotNull());
+        }
+    }
+
+    @Test
     void unaImagenQueFallaNoBloqueaElRestoDelLote() throws IOException {
         when(anthropicClient.describirImagen(any(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("Anthropic no respondio"))

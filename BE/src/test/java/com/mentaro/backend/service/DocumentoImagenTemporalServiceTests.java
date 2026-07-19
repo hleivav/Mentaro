@@ -38,8 +38,8 @@ class DocumentoImagenTemporalServiceTests {
     void guardaVariasImagenesRespetandoElOrdenDePagina() {
         UUID documentoId = crearDocumento();
         service.guardar(documentoId, List.of(
-                new DescriptorImagenesPdf.ImagenDescrita(2, "tercera pagina", new byte[] {1}),
-                new DescriptorImagenesPdf.ImagenDescrita(0, "primera pagina", new byte[] {2})));
+                new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 2, "tercera pagina", new byte[] {1}, false),
+                new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "primera pagina", new byte[] {2}, false)));
 
         List<DocumentoImagenTemporal> imagenes = service.listar(documentoId);
 
@@ -52,7 +52,8 @@ class DocumentoImagenTemporalServiceTests {
     void obtenerLanza404SiLaImagenNoEsDeEseDocumento() {
         UUID documentoId = crearDocumento();
         UUID otroDocumentoId = crearDocumento();
-        service.guardar(documentoId, List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "desc", new byte[] {1})));
+        service.guardar(documentoId, List.of(
+                new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "desc", new byte[] {1}, false)));
         UUID imagenId = service.listar(documentoId).getFirst().getId();
 
         assertThatThrownBy(() -> service.obtener(otroDocumentoId, imagenId))
@@ -63,7 +64,8 @@ class DocumentoImagenTemporalServiceTests {
     @Test
     void obtenerDevuelveLaImagenSiPerteneceAlDocumento() {
         UUID documentoId = crearDocumento();
-        service.guardar(documentoId, List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "desc", new byte[] {9, 8, 7})));
+        service.guardar(documentoId, List.of(
+                new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "desc", new byte[] {9, 8, 7}, false)));
         UUID imagenId = service.listar(documentoId).getFirst().getId();
 
         DocumentoImagenTemporal imagen = service.obtener(documentoId, imagenId);

@@ -1,8 +1,16 @@
+import { ImagenDocumento } from './ImagenDocumento'
+
 // Clip dibujado + esquina doblada visible (ver identidad visual v2,
 // ronda de ajuste: la tarjeta de explicacion necesitaba personalidad
 // propia, no solo el indice). El SVG es deliberadamente simple - dos
 // curvas superpuestas, no un icono de libreria.
-export function ExplicacionUnidad({ titulo, explicacion }) {
+//
+// imagenesAsociadas: las imagenes del documento que corresponden a ESTA
+// unidad (ver Unidad.imagenesAsociadas / ElementoSesionDTO) - se muestran
+// aca mismo, no solo en el boton "ver todas las imagenes del documento"
+// (problema real detectado probando: la imagen de una situacion de
+// transito puntual tenia que verse junto a esa explicacion puntual).
+export function ExplicacionUnidad({ titulo, explicacion, documentoId, imagenesAsociadas }) {
   return (
     <div className="explicacion-unidad">
       <svg className="explicacion-unidad__clip" viewBox="0 0 26 46" aria-hidden="true">
@@ -14,6 +22,13 @@ export function ExplicacionUnidad({ titulo, explicacion }) {
       </svg>
       <h2>{titulo}</h2>
       <p>{explicacion}</p>
+      {imagenesAsociadas?.length > 0 && (
+        <div className="explicacion-unidad__imagenes">
+          {imagenesAsociadas.map((imagenId) => (
+            <ImagenDocumento key={imagenId} documentoId={documentoId} imagenId={imagenId} alt={titulo} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

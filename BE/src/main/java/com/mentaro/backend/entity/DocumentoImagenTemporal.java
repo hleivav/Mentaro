@@ -2,8 +2,6 @@ package com.mentaro.backend.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -13,8 +11,12 @@ import java.util.UUID;
 @Table(name = "documento_imagen_temporal")
 public class DocumentoImagenTemporal {
 
+    // Sin @GeneratedValue a proposito: el id se genera ANTES de persistir
+    // (ver DescriptorImagenesPdf.ImagenDescrita) porque el mismo uuid ya
+    // quedo insertado en el texto extraido como "[Descripcion de imagen
+    // #<uuid>: ...]" - la fila tiene que nacer con ese mismo id, no uno
+    // nuevo que ya no coincidiria con la referencia en el texto.
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Column(name = "documento_id", nullable = false)
@@ -39,20 +41,25 @@ public class DocumentoImagenTemporal {
     @Column(name = "media_type", nullable = false)
     private String mediaType;
 
+    @Column(name = "es_esencial", nullable = false)
+    private boolean esEsencial;
+
     @Column(name = "actualizado_en", nullable = false)
     private Instant actualizadoEn = Instant.now();
 
     protected DocumentoImagenTemporal() {
     }
 
-    public DocumentoImagenTemporal(
-            UUID documentoId, int pagina, int orden, String descripcion, byte[] imagenBytes, String mediaType) {
+    public DocumentoImagenTemporal(UUID id, UUID documentoId, int pagina, int orden, String descripcion,
+            byte[] imagenBytes, String mediaType, boolean esEsencial) {
+        this.id = id;
         this.documentoId = documentoId;
         this.pagina = pagina;
         this.orden = orden;
         this.descripcion = descripcion;
         this.imagenBytes = imagenBytes;
         this.mediaType = mediaType;
+        this.esEsencial = esEsencial;
     }
 
     public UUID getId() {
@@ -81,6 +88,10 @@ public class DocumentoImagenTemporal {
 
     public String getMediaType() {
         return mediaType;
+    }
+
+    public boolean isEsEsencial() {
+        return esEsencial;
     }
 
     public Instant getActualizadoEn() {

@@ -74,7 +74,7 @@ class LimpiezaTextoTemporalJobTests {
         Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-limpieza-img-" + UUID.randomUUID(), "x@example.com"));
         Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.PROCESANDO));
         imagenService.guardar(documento.getId(),
-                List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "desc", new byte[] {1})));
+                List.of(new DescriptorImagenesPdf.ImagenDescrita(UUID.randomUUID(), 0, "desc", new byte[] {1}, false)));
         UUID imagenId = imagenService.listar(documento.getId()).getFirst().getId();
         imagenRepository.flush();
         jdbcTemplate.update("UPDATE documento_imagen_temporal SET actualizado_en = ? WHERE id = ?",

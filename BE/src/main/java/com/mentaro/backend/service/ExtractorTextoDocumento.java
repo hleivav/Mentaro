@@ -88,7 +88,8 @@ public class ExtractorTextoDocumento {
                     if (imagen.pagina() != pagina) {
                         continue;
                     }
-                    resultado.append("\n[Descripción de imagen: ").append(imagen.descripcion()).append("]\n");
+                    resultado.append("\n[Descripción de imagen #").append(imagen.id()).append(": ")
+                            .append(imagen.descripcion()).append("]\n");
                 }
             }
             return new ResultadoExtraccion(resultado.toString(), imagenesDescritas);

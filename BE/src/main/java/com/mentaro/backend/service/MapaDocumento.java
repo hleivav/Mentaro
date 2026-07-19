@@ -13,6 +13,6 @@ record MapaDocumento(List<SeccionEsqueleto> estructura, List<UnidadEsqueleto> un
 
     record UnidadEsqueleto(
             String id, String titulo, String seccionId, String tipoContenido,
-            String nivelImportancia, List<String> dependeDe) {
+            String nivelImportancia, List<String> dependeDe, List<String> imagenesAsociadas) {
     }
 }

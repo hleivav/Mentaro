@@ -368,6 +368,33 @@ main {
   font-size: 1.4rem;
 }
 
+.explicacion-unidad__imagenes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.explicacion-unidad__imagenes .imagen-documento,
+.explicacion-unidad__imagenes .imagen-documento--cargando {
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+
+/* Imagen que la PREGUNTA misma referencia (imagen_id), no solo la
+   explicacion previa - ver ImagenPregunta. Mismo tratamiento visual que
+   las imagenes de la explicacion, pero con su propio margen porque
+   convive con enunciados/columnas/listas segun el tipo de pregunta. */
+.pregunta-imagen {
+  margin: 0.75rem 0 1rem;
+}
+
+.pregunta-imagen .imagen-documento,
+.pregunta-imagen .imagen-documento--cargando {
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+
 .pregunta-opcion-multiple ul {
   list-style: none;
   padding: 0;

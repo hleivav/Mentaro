@@ -18,6 +18,7 @@ import com.mentaro.backend.repository.SeccionRepository;
 import com.mentaro.backend.repository.UnidadRepository;
 import com.mentaro.backend.repository.UsuarioRepository;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -122,6 +123,59 @@ class PasadaAServiceTests {
 
         Documento documentoActualizado = documentoRepository.findById(documento.getId()).orElseThrow();
         assertThat(documentoActualizado.getEstado()).isEqualTo(EstadoDocumento.MAPEADO);
+    }
+
+    @Test
+    void capturaImagenesAsociadasDesdeLosMarcadoresDelTexto() {
+        UUID imagen1 = UUID.randomUUID();
+        UUID imagen2 = UUID.randomUUID();
+        String respuesta = """
+                {
+                  "estructura": [
+                    {"id": "sec-1", "titulo": "Libro I", "padre_id": null, "resumen": "Introduccion"}
+                  ],
+                  "unidades": [
+                    {"id": "u-1", "titulo": "Con imagenes", "seccion_id": "sec-1", "tipo_contenido": "declarativo", "nivel_importancia": "esencial", "depende_de": [], "imagenes_asociadas": ["%s", "%s"]},
+                    {"id": "u-2", "titulo": "Sin imagenes", "seccion_id": "sec-1", "tipo_contenido": "declarativo", "nivel_importancia": "esencial", "depende_de": []}
+                  ]
+                }
+                """.formatted(imagen1, imagen2);
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString())).thenReturn(respuesta);
+
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-pasada-a-img", "imgpasadaa@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.PROCESANDO));
+
+        pasadaAService.ejecutar(documento, "texto con [Descripción de imagen #" + imagen1 + ": ...] marcadores");
+
+        List<Unidad> unidades = unidadRepository.findByDocumento_Id(documento.getId());
+        Unidad conImagenes = unidades.stream().filter(u -> u.getTitulo().equals("Con imagenes")).findFirst().orElseThrow();
+        Unidad sinImagenes = unidades.stream().filter(u -> u.getTitulo().equals("Sin imagenes")).findFirst().orElseThrow();
+        assertThat(conImagenes.getImagenesAsociadas()).containsExactlyInAnyOrder(imagen1, imagen2);
+        assertThat(sinImagenes.getImagenesAsociadas()).isEmpty();
+    }
+
+    @Test
+    void descartaUuidsInvalidosEnImagenesAsociadasSinTumbarLaUnidad() {
+        UUID valido = UUID.randomUUID();
+        String respuesta = """
+                {
+                  "estructura": [
+                    {"id": "sec-1", "titulo": "Libro I", "padre_id": null, "resumen": "Introduccion"}
+                  ],
+                  "unidades": [
+                    {"id": "u-1", "titulo": "Unidad", "seccion_id": "sec-1", "tipo_contenido": "declarativo", "nivel_importancia": "esencial", "depende_de": [], "imagenes_asociadas": ["%s", "no-es-un-uuid"]}
+                  ]
+                }
+                """.formatted(valido);
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString())).thenReturn(respuesta);
+
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-pasada-a-img2", "imgpasadaa2@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.PROCESANDO));
+
+        pasadaAService.ejecutar(documento, "texto fuente");
+
+        Unidad unidad = unidadRepository.findByDocumento_Id(documento.getId()).getFirst();
+        assertThat(unidad.getImagenesAsociadas()).containsExactly(valido);
     }
 
     @Test

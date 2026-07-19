@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.mentaro.backend.deepseek.DeepSeekClient;
 import com.mentaro.backend.deepseek.DeepSeekOpciones;
 import com.mentaro.backend.entity.Documento;
+import com.mentaro.backend.entity.DocumentoImagenTemporal;
 import com.mentaro.backend.entity.EstadoDocumento;
 import com.mentaro.backend.entity.EstadoGeneracion;
 import com.mentaro.backend.entity.NivelImportancia;
@@ -16,6 +17,7 @@ import com.mentaro.backend.entity.Seccion;
 import com.mentaro.backend.entity.TipoContenido;
 import com.mentaro.backend.entity.Unidad;
 import com.mentaro.backend.entity.Usuario;
+import com.mentaro.backend.repository.DocumentoImagenTemporalRepository;
 import com.mentaro.backend.repository.DocumentoRepository;
 import com.mentaro.backend.repository.SeccionRepository;
 import com.mentaro.backend.repository.UnidadRepository;
@@ -49,6 +51,8 @@ class PasadaBServiceTests {
     private SeccionRepository seccionRepository;
     @Autowired
     private UnidadRepository unidadRepository;
+    @Autowired
+    private DocumentoImagenTemporalRepository imagenTemporalRepository;
     @Autowired
     private ObjectMapper objectMapper;
     @Value("${app.deepseek.modelo-pasada-b}")
@@ -513,5 +517,63 @@ class PasadaBServiceTests {
         Map<String, Object> pregunta = leerPregunta(actualizada.getPreguntaReconocimiento());
         assertThat(pregunta.get("items")).isEqualTo(List.of("Paso B", "Paso A", "Paso C"));
         assertThat(pregunta.get("orden_correcto")).isEqualTo(List.of(1, 0, 2));
+    }
+
+    private UUID guardarImagenEsencial(UUID documentoId) {
+        UUID imagenId = UUID.randomUUID();
+        imagenTemporalRepository.save(new DocumentoImagenTemporal(
+                imagenId, documentoId, 0, 0, "diagrama de una situacion de transito", new byte[] {1}, "image/png", true));
+        return imagenId;
+    }
+
+    private static String contenidoConImagenId(UUID id, UUID imagenId) {
+        return """
+                {"unidades": [{
+                  "id": "%s",
+                  "explicacion_corta": "Explicacion corta.",
+                  "explicacion_alternativa": "Otra forma.",
+                  "pregunta_reconocimiento": {"tipo": "opcion_multiple", "enunciado": "pregunta", "imagen_id": "%s", "alternativas": ["Opcion A valida", "Opcion B valida", "Opcion C valida", "Opcion D valida"], "correcta_index": 0},
+                  "pregunta_refuerzo": {"tipo": "opcion_multiple", "enunciado": "pregunta refuerzo", "alternativas": ["Otra A", "Otra B", "Otra C"], "correcta_index": 0}
+                }]}
+                """.formatted(id, imagenId);
+    }
+
+    @Test
+    void incluyeImagenIdCuandoReferenciaUnaImagenEsencialDeLaPropiaUnidad() {
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-imgid1", "imgid1@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        UUID imagenId = guardarImagenEsencial(documento.getId());
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO);
+        unidad.setImagenesAsociadas(new UUID[] {imagenId});
+        unidad = unidadRepository.save(unidad);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoConImagenId(unidad.getId(), imagenId));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.GENERADA);
+        assertThat(leerPregunta(actualizada.getPreguntaReconocimiento()).get("imagen_id")).isEqualTo(imagenId.toString());
+    }
+
+    @Test
+    void rechazaImagenIdQueNoEstaEntreLasEsencialesDeLaUnidad() {
+        // La unidad no tiene ninguna imagen esencial asociada, pero el
+        // modelo alucino un imagen_id igual - debe tratarse como invalido,
+        // no persistirse tal cual.
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-imgid2", "imgid2@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.GENERANDO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        Unidad unidad = crearEsqueleto(documento, seccion, TipoContenido.DECLARATIVO, NivelImportancia.IMPORTANTE);
+
+        when(deepSeekClient.completar(any(DeepSeekOpciones.class), anyString(), anyString()))
+                .thenReturn(contenidoConImagenId(unidad.getId(), UUID.randomUUID()));
+
+        pasadaBService.ejecutar(documento, List.of(unidad), TEXTO_FUENTE);
+
+        Unidad actualizada = unidadRepository.findById(unidad.getId()).orElseThrow();
+        assertThat(actualizada.getEstadoGeneracion()).isEqualTo(EstadoGeneracion.FALLIDA_EXCLUIDA);
     }
 }

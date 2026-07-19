@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ImagenPregunta } from './ImagenPregunta'
 
 // Tocar para seleccionar, sin arrastrar (ver decision de interaccion):
 // se toca cada elemento disponible en el orden en que se cree que va, y
@@ -7,7 +8,7 @@ import { useState } from 'react'
 // indices que se mandan son los de "items" tal cual llego (ya
 // desordenado por el backend, ver PasadaBService) - "orden_correcto" es
 // una lista de esos mismos indices en la secuencia real.
-export function OrdenarCronologico({ pregunta, onResponder, deshabilitado, retroalimentacion }) {
+export function OrdenarCronologico({ pregunta, onResponder, deshabilitado, retroalimentacion, documentoId }) {
   const [seleccionados, setSeleccionados] = useState([])
 
   const completo = seleccionados.length === pregunta.items.length
@@ -35,6 +36,7 @@ export function OrdenarCronologico({ pregunta, onResponder, deshabilitado, retro
   return (
     <div className="ordenar-cronologico">
       <p>{pregunta.enunciado}</p>
+      <ImagenPregunta documentoId={documentoId} imagenId={pregunta.imagen_id} />
 
       <ol className={`ordenar-cronologico__secuencia ${clase}`}>
         {seleccionados.length === 0 && <li className="ordenar-cronologico__vacio">Tocá los elementos en orden</li>}
