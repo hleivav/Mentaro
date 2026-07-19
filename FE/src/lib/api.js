@@ -39,3 +39,42 @@ export async function api(path, options = {}) {
   if (res.status === 204) return null
   return res.json()
 }
+
+// Para recursos binarios (imagenes) - un <img src> plano no puede mandar
+// el header Authorization, asi que se pide autenticado como blob y se
+// arma un object URL del lado del componente (ver ImagenDocumento).
+export async function apiBlob(path) {
+  let res = await pedir(path, {}, await getAuth().currentUser?.getIdToken())
+
+  if (res.status === 401 && getAuth().currentUser) {
+    res = await pedir(path, {}, await getAuth().currentUser.getIdToken(true))
+  }
+
+  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  return res.blob()
+}
+
+// fetch no expone progreso de subida (solo de descarga) - XMLHttpRequest
+// es el unico mecanismo del navegador que lo da, de ahi que este caso use
+// una implementacion aparte en vez de reusar pedir(). onProgreso recibe
+// una fraccion 0..1, real (bytes transferidos / total), nunca inventada.
+export async function subirConProgreso(path, formData, onProgreso) {
+  const token = await getAuth().currentUser?.getIdToken()
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${import.meta.env.VITE_API_URL}${path}`)
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.upload.onprogress = (evento) => {
+      if (evento.lengthComputable && onProgreso) onProgreso(evento.loaded / evento.total)
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(xhr.status === 204 ? null : JSON.parse(xhr.responseText))
+      } else {
+        reject(new Error(`API error: ${xhr.status}`))
+      }
+    }
+    xhr.onerror = () => reject(new Error('Error de red al subir el archivo'))
+    xhr.send(formData)
+  })
+}

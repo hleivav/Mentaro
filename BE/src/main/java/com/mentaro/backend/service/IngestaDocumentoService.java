@@ -23,27 +23,31 @@ public class IngestaDocumentoService {
     private final ExtractorTextoDocumento extractor;
     private final DocumentoRepository documentoRepository;
     private final DocumentoTextoTemporalService textoTemporalService;
+    private final DocumentoImagenTemporalService imagenTemporalService;
     private final PasadaAAsyncRunner pasadaAAsyncRunner;
 
     public IngestaDocumentoService(
             ExtractorTextoDocumento extractor,
             DocumentoRepository documentoRepository,
             DocumentoTextoTemporalService textoTemporalService,
+            DocumentoImagenTemporalService imagenTemporalService,
             PasadaAAsyncRunner pasadaAAsyncRunner) {
         this.extractor = extractor;
         this.documentoRepository = documentoRepository;
         this.textoTemporalService = textoTemporalService;
+        this.imagenTemporalService = imagenTemporalService;
         this.pasadaAAsyncRunner = pasadaAAsyncRunner;
     }
 
     public Documento crear(Usuario usuario, MultipartFile archivo, String titulo) {
-        String textoExtraido = extractor.extraer(archivo);
+        ExtractorTextoDocumento.ResultadoExtraccion extraido = extractor.extraer(archivo);
 
         Documento documento = documentoRepository.save(
                 new Documento(usuario, tituloEfectivo(titulo, archivo), EstadoDocumento.PROCESANDO));
-        textoTemporalService.guardar(documento.getId(), textoExtraido);
+        textoTemporalService.guardar(documento.getId(), extraido.texto());
+        imagenTemporalService.guardar(documento.getId(), extraido.imagenes());
 
-        pasadaAAsyncRunner.ejecutar(documento.getId(), textoExtraido);
+        pasadaAAsyncRunner.ejecutar(documento.getId(), extraido.texto());
 
         return documento;
     }

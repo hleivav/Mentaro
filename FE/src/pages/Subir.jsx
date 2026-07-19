@@ -1,23 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
+import { subirConProgreso } from '../lib/api'
 import { useDocumento } from '../hooks/useDocumento'
-import { IndicadorCarga } from '../components/IndicadorCarga'
+import { BarraProgreso } from '../components/BarraProgreso'
 
 export function Subir() {
   const [archivo, setArchivo] = useState(null)
   const [titulo, setTitulo] = useState('')
   const [documentoId, setDocumentoId] = useState(null)
+  const [progresoSubida, setProgresoSubida] = useState(0)
   const inputArchivoRef = useRef(null)
   const navigate = useNavigate()
 
   const subir = useMutation({
+    onMutate: () => setProgresoSubida(0),
     mutationFn: () => {
       const formData = new FormData()
       formData.append('archivo', archivo)
       if (titulo) formData.append('titulo', titulo)
-      return api('/api/documentos', { method: 'POST', body: formData })
+      return subirConProgreso('/api/documentos', formData, setProgresoSubida)
     },
     onSuccess: (documento) => setDocumentoId(documento.id)
   })
@@ -78,12 +80,13 @@ export function Subir() {
         </form>
       </div>
 
-      {/* Dos etapas encadenadas: "subiendo" arranca en el instante en que
-          se dispara la subida (subir.isPending es sincronico, no espera
-          ninguna respuesta del servidor) y "procesando" una vez que el
-          documento ya existe del lado del backend. */}
-      {subir.isPending && <IndicadorCarga texto="Subiendo documento…" />}
-      {documentoId && estado === 'procesando' && <IndicadorCarga texto="Procesando documento…" />}
+      {/* Dos etapas encadenadas. "Subiendo": progreso real, medido en bytes
+          transferidos (XMLHttpRequest es el unico mecanismo del navegador
+          que expone esto, ver subirConProgreso). "Procesando": la Pasada A
+          es una sola llamada a DeepSeek sin pasos intermedios que
+          reportar - barra indeterminada, nunca un porcentaje inventado. */}
+      {subir.isPending && <BarraProgreso texto="Subiendo documento…" fraccion={progresoSubida} />}
+      {documentoId && estado === 'procesando' && <BarraProgreso texto="Procesando documento…" />}
 
       {estado === 'error' && (
         <>

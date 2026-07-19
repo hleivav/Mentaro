@@ -169,10 +169,6 @@ main {
   font-size: 0.9rem;
 }
 
-.subir .indicador-carga {
-  margin-top: 1rem;
-}
-
 /* ---------- Documentos ---------- */
 
 .documentos ul {
@@ -425,6 +421,10 @@ main {
   position: relative;
 }
 
+.juego button.secundario + button.secundario {
+  margin-left: 0.5rem;
+}
+
 .juego--completo {
   text-align: center;
 }
@@ -575,6 +575,82 @@ main {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ---------- Barra de progreso ---------- */
+
+.barra-progreso {
+  margin-top: 1rem;
+}
+
+.barra-progreso__texto {
+  color: var(--tinta-suave);
+  margin-bottom: 0.4rem;
+}
+
+.barra-progreso__pista {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--pergamino-hondo);
+  overflow: hidden;
+}
+
+.barra-progreso__relleno {
+  height: 100%;
+  background: var(--oro);
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+
+/* Sin fraccion real que mostrar (ver BarraProgreso) - un tramo que se
+   desliza de lado a lado, nunca un numero inventado. */
+.barra-progreso__relleno--indeterminado {
+  width: 40%;
+  animation: deslizar-barra 1.2s ease-in-out infinite;
+}
+
+@keyframes deslizar-barra {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+/* ---------- Galeria de imagenes ---------- */
+
+.galeria-imagenes {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.galeria-imagenes__item {
+  background: var(--pergamino-hondo);
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+
+.imagen-documento {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.imagen-documento--cargando {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+.galeria-imagenes__pie {
+  padding: 0.85rem 1rem;
+  margin: 0;
+  color: var(--tinta-suave);
+  font-size: 0.9rem;
 }
 
 /* ---------- Tira de sellos ---------- */

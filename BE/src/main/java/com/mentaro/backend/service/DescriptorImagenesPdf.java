@@ -5,9 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import javax.imageio.ImageIO;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -63,26 +61,36 @@ public class DescriptorImagenesPdf {
     // lo que esa seccion ya esta explicando - describir la imagen aislada
     // produce descripciones plausibles pero a veces conceptualmente
     // equivocadas (confirmado con una prueba manual real).
-    public Map<Integer, List<String>> describir(PDDocument pdf, List<String> paginasTexto) throws IOException {
+    //
+    // Devuelve tambien los bytes de la imagen (no solo la descripcion): a
+    // diferencia de la primera version, la imagen original SI se le
+    // muestra al usuario mientras juega (ver DocumentoImagenTemporalService)
+    // - la version anterior los descartaba por una cautela de copyright
+    // que resulto excesiva, la imagen es solo un archivo que se renderiza
+    // como cualquier otro.
+    public List<ImagenDescrita> describir(PDDocument pdf, List<String> paginasTexto) throws IOException {
         List<ImagenConPagina> seleccionadas = extraerCandidatas(pdf).stream()
                 .sorted(Comparator.comparingLong(ImagenConPagina::area).reversed())
                 .limit(MAX_IMAGENES_POR_DOCUMENTO)
                 .toList();
 
-        Map<Integer, List<String>> descripcionesPorPagina = new LinkedHashMap<>();
+        List<ImagenDescrita> resultado = new ArrayList<>();
         for (ImagenConPagina imagen : seleccionadas) {
             String contexto = paginasTexto.get(imagen.pagina());
             try {
                 String descripcion = anthropicClient.describirImagen(
                         imagen.pngBytes(), "image/png", PROMPT.formatted(contexto));
-                descripcionesPorPagina.computeIfAbsent(imagen.pagina(), k -> new ArrayList<>()).add(descripcion);
+                resultado.add(new ImagenDescrita(imagen.pagina(), descripcion, imagen.pngBytes()));
             } catch (Exception e) {
                 // Una imagen puntual que falla (red, formato raro, etc.) no
                 // debe tumbar la ingesta completa del documento.
                 log.warn("No se pudo describir una imagen de la pagina {}: {}", imagen.pagina() + 1, e.getMessage());
             }
         }
-        return descripcionesPorPagina;
+        return resultado;
+    }
+
+    public record ImagenDescrita(int pagina, String descripcion, byte[] pngBytes) {
     }
 
     private List<ImagenConPagina> extraerCandidatas(PDDocument pdf) throws IOException {

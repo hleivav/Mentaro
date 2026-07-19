@@ -5,7 +5,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -27,20 +26,25 @@ public class ExtractorTextoDocumento {
         this.descriptorImagenesPdf = descriptorImagenesPdf;
     }
 
-    public String extraer(MultipartFile archivo) {
+    // imagenes: vacia para .txt (nunca trae imagenes embebidas) - ver
+    // DocumentoImagenTemporalService para donde terminan persistidas.
+    public record ResultadoExtraccion(String texto, List<DescriptorImagenesPdf.ImagenDescrita> imagenes) {
+    }
+
+    public ResultadoExtraccion extraer(MultipartFile archivo) {
         String extension = extension(archivo.getOriginalFilename());
-        String texto = switch (extension) {
-            case "txt" -> extraerTexto(archivo);
+        ResultadoExtraccion resultado = switch (extension) {
+            case "txt" -> new ResultadoExtraccion(extraerTexto(archivo), List.of());
             case "pdf" -> extraerPdf(archivo);
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Formato no soportado: ." + extension + " (solo .txt y .pdf por ahora)");
         };
 
-        if (texto.isBlank()) {
+        if (resultado.texto().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "No se pudo extraer texto del archivo (¿esta vacio o es un PDF escaneado sin capa de texto?)");
         }
-        return texto;
+        return resultado;
     }
 
     private String extension(String nombreArchivo) {
@@ -64,7 +68,7 @@ public class ExtractorTextoDocumento {
     // DescriptorImagenesPdf) y como punto de insercion de la descripcion -
     // PDFBox no permite un posicionamiento mas fino dentro de una pagina
     // de forma confiable, asi que no se intenta.
-    private String extraerPdf(MultipartFile archivo) {
+    private ResultadoExtraccion extraerPdf(MultipartFile archivo) {
         try (PDDocument pdf = Loader.loadPDF(archivo.getBytes())) {
             List<String> textoPorPagina = new ArrayList<>();
             PDFTextStripper stripper = new PDFTextStripper();
@@ -74,16 +78,20 @@ public class ExtractorTextoDocumento {
                 textoPorPagina.add(stripper.getText(pdf));
             }
 
-            Map<Integer, List<String>> descripcionesPorPagina = descriptorImagenesPdf.describir(pdf, textoPorPagina);
+            List<DescriptorImagenesPdf.ImagenDescrita> imagenesDescritas =
+                    descriptorImagenesPdf.describir(pdf, textoPorPagina);
 
             StringBuilder resultado = new StringBuilder();
             for (int pagina = 0; pagina < textoPorPagina.size(); pagina++) {
                 resultado.append(textoPorPagina.get(pagina));
-                for (String descripcion : descripcionesPorPagina.getOrDefault(pagina, List.of())) {
-                    resultado.append("\n[Descripción de imagen: ").append(descripcion).append("]\n");
+                for (DescriptorImagenesPdf.ImagenDescrita imagen : imagenesDescritas) {
+                    if (imagen.pagina() != pagina) {
+                        continue;
+                    }
+                    resultado.append("\n[Descripción de imagen: ").append(imagen.descripcion()).append("]\n");
                 }
             }
-            return resultado.toString();
+            return new ResultadoExtraccion(resultado.toString(), imagenesDescritas);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se pudo leer el PDF: " + e.getMessage());
         }

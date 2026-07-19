@@ -16,6 +16,7 @@ import com.mentaro.backend.entity.TipoContenido;
 import com.mentaro.backend.entity.TipoElemento;
 import com.mentaro.backend.entity.Unidad;
 import com.mentaro.backend.entity.Usuario;
+import com.mentaro.backend.repository.DocumentoImagenTemporalRepository;
 import com.mentaro.backend.repository.DocumentoRepository;
 import com.mentaro.backend.repository.DocumentoTextoTemporalRepository;
 import com.mentaro.backend.repository.ProgresoUsuarioRepository;
@@ -42,6 +43,10 @@ class DocumentoEliminacionServiceTests {
     private EntityManager entityManager;
     @Autowired
     private DocumentoTextoTemporalService textoTemporalService;
+    @Autowired
+    private DocumentoImagenTemporalService imagenTemporalService;
+    @Autowired
+    private DocumentoImagenTemporalRepository documentoImagenTemporalRepository;
     @Autowired
     private UsuarioRepository usuarioRepository;
     @Autowired
@@ -80,6 +85,8 @@ class DocumentoEliminacionServiceTests {
         progresoUsuarioRepository.save(progreso);
         resultadoUnidadRepository.save(new ResultadoUnidad(usuario, unidad, EstadoResultado.DOMINADA));
         textoTemporalService.guardar(documento.getId(), "texto de prueba");
+        imagenTemporalService.guardar(documento.getId(),
+                java.util.List.of(new DescriptorImagenesPdf.ImagenDescrita(0, "desc", new byte[] {1})));
 
         UUID documentoId = documento.getId();
         UUID unidadId = unidad.getId();
@@ -108,6 +115,8 @@ class DocumentoEliminacionServiceTests {
         assertThat(resultadoUnidadRepository.findByUsuario_IdAndUnidad_Id(usuario.getId(), unidadId)).isEmpty();
         // documento_texto_temporal tiene ON DELETE CASCADE - debe irse solo.
         assertThat(documentoTextoTemporalRepository.findById(documentoId)).isEmpty();
+        // documento_imagen_temporal tambien tiene ON DELETE CASCADE.
+        assertThat(documentoImagenTemporalRepository.findByDocumentoIdOrderByPaginaAscOrdenAsc(documentoId)).isEmpty();
     }
 
     @Test

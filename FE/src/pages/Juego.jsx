@@ -9,6 +9,8 @@ import { PreguntaOpcionMultiple } from '../components/PreguntaOpcionMultiple'
 import { CaminoDeTinta } from '../components/CaminoDeTinta'
 import { IndiceIluminado } from '../components/IndiceIluminado'
 import { TiraSellos } from '../components/TiraSellos'
+import { GaleriaImagenes } from '../components/GaleriaImagenes'
+import { useImagenesDocumento } from '../hooks/useImagenesDocumento'
 import { reproducirAcierto, reproducirError, reproducirPling, reproducirPlong } from '../lib/sonido'
 
 const SECCIONES_VACIO = []
@@ -38,7 +40,10 @@ export function Juego() {
   const [retroalimentacion, setRetroalimentacion] = useState(null)
   const [mensajeSegundoFallo, setMensajeSegundoFallo] = useState(false)
   const [mostrarIndice, setMostrarIndice] = useState(false)
+  const [mostrarImagenes, setMostrarImagenes] = useState(false)
   const [sonidoActivado] = usePreferenciaSonido()
+  const imagenesDocumento = useImagenesDocumento(documentoId)
+  const hayImagenes = (imagenesDocumento.data?.length ?? 0) > 0
 
   // GET /sesion trae varios elementos por adelantado, pero solo el primero
   // esta activo (posicion_actual apunta ahi) - el resto es solo para que
@@ -128,6 +133,14 @@ export function Juego() {
         <TiraSellos cantidad={progreso.data?.unidades_dominadas ?? 0} total={progreso.data?.unidades_totales ?? 0} />
         {secciones.length > 0 && (
           <IndiceIluminado documentoId={documentoId} secciones={secciones} progresoSecciones={seccionesProgreso} />
+        )}
+        {hayImagenes && (
+          <>
+            <button type="button" className="secundario" onClick={() => setMostrarImagenes((actual) => !actual)}>
+              {mostrarImagenes ? 'Ocultar imágenes' : 'Ver imágenes del documento'}
+            </button>
+            {mostrarImagenes && <GaleriaImagenes documentoId={documentoId} />}
+          </>
         )}
         <Link className="volver-a-seleccion" to={`/documentos/${documentoId}/seleccion`}>
           Elegir más secciones
@@ -222,6 +235,14 @@ export function Juego() {
           {mostrarIndice && (
             <IndiceIluminado documentoId={documentoId} secciones={secciones} progresoSecciones={seccionesProgreso} />
           )}
+        </>
+      )}
+      {hayImagenes && (
+        <>
+          <button type="button" className="secundario" onClick={() => setMostrarImagenes((actual) => !actual)}>
+            {mostrarImagenes ? 'Ocultar imágenes' : 'Ver imágenes del documento'}
+          </button>
+          {mostrarImagenes && <GaleriaImagenes documentoId={documentoId} />}
         </>
       )}
     </main>

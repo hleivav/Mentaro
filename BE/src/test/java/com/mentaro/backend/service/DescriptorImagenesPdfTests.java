@@ -13,7 +13,6 @@ import com.mentaro.backend.anthropic.AnthropicClient;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -42,7 +41,7 @@ class DescriptorImagenesPdfTests {
             pdf.addPage(pagina);
             agregarImagen(pdf, pagina, 100, 100);
 
-            Map<Integer, List<String>> resultado = descriptor.describir(pdf, List.of("texto de la pagina"));
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("texto de la pagina"));
 
             assertThat(resultado).isEmpty();
             verify(anthropicClient, never()).describirImagen(any(), anyString(), anyString());
@@ -50,16 +49,24 @@ class DescriptorImagenesPdfTests {
     }
 
     @Test
-    void describeImagenesGrandesUsandoElTextoDeLaMismaPaginaComoContexto() throws IOException {
+    void describeImagenesGrandesUsandoElTextoDeLaMismaPaginaComoContextoYDevuelveLosBytes() throws IOException {
         when(anthropicClient.describirImagen(any(), anyString(), anyString())).thenReturn("un diagrama");
         try (PDDocument pdf = new PDDocument()) {
             PDPage pagina = new PDPage();
             pdf.addPage(pagina);
             agregarImagen(pdf, pagina, 200, 200);
 
-            Map<Integer, List<String>> resultado = descriptor.describir(pdf, List.of("texto de contexto de la pagina 0"));
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado =
+                    descriptor.describir(pdf, List.of("texto de contexto de la pagina 0"));
 
-            assertThat(resultado).containsEntry(0, List.of("un diagrama"));
+            assertThat(resultado).hasSize(1);
+            DescriptorImagenesPdf.ImagenDescrita imagen = resultado.getFirst();
+            assertThat(imagen.pagina()).isZero();
+            assertThat(imagen.descripcion()).isEqualTo("un diagrama");
+            // Los bytes originales viajan junto con la descripcion - la
+            // imagen SI se le muestra al usuario despues (ver correccion
+            // del sistema de diseño sobre imagenes), no se descartan.
+            assertThat(imagen.pngBytes()).isNotEmpty();
             verify(anthropicClient).describirImagen(any(), org.mockito.ArgumentMatchers.eq("image/png"),
                     org.mockito.ArgumentMatchers.contains("texto de contexto de la pagina 0"));
         }
@@ -94,9 +101,10 @@ class DescriptorImagenesPdfTests {
             agregarImagen(pdf, pagina, 200, 200);
             agregarImagen(pdf, pagina, 190, 190);
 
-            Map<Integer, List<String>> resultado = descriptor.describir(pdf, List.of("contexto"));
+            List<DescriptorImagenesPdf.ImagenDescrita> resultado = descriptor.describir(pdf, List.of("contexto"));
 
-            assertThat(resultado.get(0)).containsExactly("segunda imagen ok");
+            assertThat(resultado).extracting(DescriptorImagenesPdf.ImagenDescrita::descripcion)
+                    .containsExactly("segunda imagen ok");
         }
     }
 }

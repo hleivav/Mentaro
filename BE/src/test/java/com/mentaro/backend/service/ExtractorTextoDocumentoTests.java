@@ -36,27 +36,34 @@ class ExtractorTextoDocumentoTests {
         MockMultipartFile archivo = new MockMultipartFile(
                 "archivo", "capitulo1.txt", "text/plain", "En un lugar de la Mancha...".getBytes(StandardCharsets.UTF_8));
 
-        assertThat(extractor.extraer(archivo)).isEqualTo("En un lugar de la Mancha...");
+        ExtractorTextoDocumento.ResultadoExtraccion resultado = extractor.extraer(archivo);
+
+        assertThat(resultado.texto()).isEqualTo("En un lugar de la Mancha...");
+        assertThat(resultado.imagenes()).isEmpty();
     }
 
     @Test
     void extraeTextoDeUnPdfConCapaDeTexto() throws IOException {
         MockMultipartFile archivo = new MockMultipartFile("archivo", "manual.pdf", "application/pdf", pdfDePrueba());
 
-        assertThat(extractor.extraer(archivo)).contains("En un lugar de la Mancha");
+        assertThat(extractor.extraer(archivo).texto()).contains("En un lugar de la Mancha");
     }
 
     @Test
-    void describeImagenesGrandesEInsertaLaDescripcionEnElTexto() throws IOException {
+    void describeImagenesGrandesInsertaLaDescripcionEnElTextoYDevuelveLaImagen() throws IOException {
         when(anthropicClient.describirImagen(any(), anyString(), anyString()))
                 .thenReturn("Un molino de viento junto a un camino.");
         MockMultipartFile archivo =
                 new MockMultipartFile("archivo", "manual.pdf", "application/pdf", pdfConImagen(200, 200));
 
-        String texto = extractor.extraer(archivo);
+        ExtractorTextoDocumento.ResultadoExtraccion resultado = extractor.extraer(archivo);
 
-        assertThat(texto).contains("En un lugar de la Mancha");
-        assertThat(texto).contains("[Descripción de imagen: Un molino de viento junto a un camino.]");
+        assertThat(resultado.texto()).contains("En un lugar de la Mancha");
+        assertThat(resultado.texto()).contains("[Descripción de imagen: Un molino de viento junto a un camino.]");
+        assertThat(resultado.imagenes()).singleElement().satisfies(imagen -> {
+            assertThat(imagen.descripcion()).isEqualTo("Un molino de viento junto a un camino.");
+            assertThat(imagen.pngBytes()).isNotEmpty();
+        });
         // El contexto mandado al modelo debe incluir el texto de la misma
         // pagina, no la imagen aislada (confirmado con prueba manual que
         // sin contexto el modelo adivina a ciegas).
@@ -68,9 +75,10 @@ class ExtractorTextoDocumentoTests {
         MockMultipartFile archivo =
                 new MockMultipartFile("archivo", "manual.pdf", "application/pdf", pdfConImagen(50, 50));
 
-        String texto = extractor.extraer(archivo);
+        ExtractorTextoDocumento.ResultadoExtraccion resultado = extractor.extraer(archivo);
 
-        assertThat(texto).doesNotContain("Descripción de imagen");
+        assertThat(resultado.texto()).doesNotContain("Descripción de imagen");
+        assertThat(resultado.imagenes()).isEmpty();
         verify(anthropicClient, org.mockito.Mockito.never()).describirImagen(any(), anyString(), anyString());
     }
 

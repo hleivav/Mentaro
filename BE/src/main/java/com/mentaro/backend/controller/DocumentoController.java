@@ -2,13 +2,16 @@ package com.mentaro.backend.controller;
 
 import com.mentaro.backend.dto.DocumentoResponse;
 import com.mentaro.backend.dto.GenerarRequest;
+import com.mentaro.backend.dto.ImagenDocumentoDTO;
 import com.mentaro.backend.dto.MapaDocumentoResponse;
 import com.mentaro.backend.dto.ProgresoDocumentoResponse;
 import com.mentaro.backend.entity.Documento;
+import com.mentaro.backend.entity.DocumentoImagenTemporal;
 import com.mentaro.backend.entity.Usuario;
 import com.mentaro.backend.service.DocumentoConsultaService;
 import com.mentaro.backend.service.DocumentoEliminacionService;
 import com.mentaro.backend.service.GeneracionDocumentoService;
+import com.mentaro.backend.service.ImagenDocumentoConsultaService;
 import com.mentaro.backend.service.IngestaDocumentoService;
 import com.mentaro.backend.service.MapaDocumentoConsultaService;
 import com.mentaro.backend.service.ProgresoDocumentoService;
@@ -18,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +45,7 @@ public class DocumentoController {
     private final ProgresoDocumentoService progresoDocumentoService;
     private final DocumentoEliminacionService documentoEliminacionService;
     private final ProgresoReinicioService progresoReinicioService;
+    private final ImagenDocumentoConsultaService imagenDocumentoConsultaService;
 
     public DocumentoController(
             IngestaDocumentoService ingestaDocumentoService,
@@ -49,7 +54,8 @@ public class DocumentoController {
             MapaDocumentoConsultaService mapaDocumentoConsultaService,
             ProgresoDocumentoService progresoDocumentoService,
             DocumentoEliminacionService documentoEliminacionService,
-            ProgresoReinicioService progresoReinicioService) {
+            ProgresoReinicioService progresoReinicioService,
+            ImagenDocumentoConsultaService imagenDocumentoConsultaService) {
         this.ingestaDocumentoService = ingestaDocumentoService;
         this.documentoConsultaService = documentoConsultaService;
         this.generacionDocumentoService = generacionDocumentoService;
@@ -57,6 +63,7 @@ public class DocumentoController {
         this.progresoDocumentoService = progresoDocumentoService;
         this.documentoEliminacionService = documentoEliminacionService;
         this.progresoReinicioService = progresoReinicioService;
+        this.imagenDocumentoConsultaService = imagenDocumentoConsultaService;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -105,5 +112,19 @@ public class DocumentoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void reiniciarProgreso(@AuthenticationPrincipal Usuario usuario, @PathVariable UUID id) {
         progresoReinicioService.reiniciar(usuario, id);
+    }
+
+    @GetMapping("/{id}/imagenes")
+    public List<ImagenDocumentoDTO> imagenes(@AuthenticationPrincipal Usuario usuario, @PathVariable UUID id) {
+        return imagenDocumentoConsultaService.listar(usuario, id);
+    }
+
+    @GetMapping("/{id}/imagenes/{imagenId}")
+    public ResponseEntity<byte[]> imagen(
+            @AuthenticationPrincipal Usuario usuario, @PathVariable UUID id, @PathVariable UUID imagenId) {
+        DocumentoImagenTemporal imagen = imagenDocumentoConsultaService.obtener(usuario, id, imagenId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(imagen.getMediaType()))
+                .body(imagen.getImagenBytes());
     }
 }
