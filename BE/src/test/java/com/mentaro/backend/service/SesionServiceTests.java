@@ -319,6 +319,34 @@ class SesionServiceTests {
     }
 
     @Test
+    void preguntaSinCampoTipoSeTrataComoOpcionMultipleParaCompatibilidadHaciaAtras() {
+        // Documentos generados ANTES de que existiera "tipo" en el esquema
+        // (ver mecanicas-respuesta.md) nunca lo guardaron, pero esas
+        // preguntas siempre eran opcion_multiple - regresion real: GET
+        // /sesion reventaba con IllegalStateException para esos documentos
+        // ya existentes, que el navegador mostraba como un 401 enganoso
+        // (ver bug de /error sin permitAll en SecurityConfig).
+        Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-legado", "legado@example.com"));
+        Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.LISTO));
+        Seccion seccion = seccionRepository.save(new Seccion(documento, null, "Seccion", "resumen"));
+        String preguntaSinTipo = "{\"enunciado\": \"pregunta\", \"alternativas\": [\"a\", \"b\", \"c\"], \"correcta_index\": 1}";
+        Unidad unidad = crearUnidadConPregunta(documento, seccion, preguntaSinTipo);
+        secuenciaTableroRepository.save(new SecuenciaTablero(documento, 100, unidad, TipoElemento.NUEVA));
+
+        SesionResponse sesion = sesionService.obtenerSesion(usuario, documento.getId());
+        assertThat(sesion.elementos().getFirst().pregunta().get("alternativas")).isEqualTo(List.of("a", "b", "c"));
+        // El "tipo" tiene que llegar SIEMPRE al frontend, incluso para
+        // contenido legado que nunca lo tuvo guardado - de lo contrario el
+        // cliente manda tipo_pregunta=undefined al responder y el backend
+        // lo rechaza con 400 (bug real: ver comentario en redactar()).
+        assertThat(sesion.elementos().getFirst().pregunta().get("tipo")).isEqualTo("opcion_multiple");
+
+        ResponderResponse respuesta = sesionService.responder(usuario, documento.getId(),
+                new ResponderRequest(unidad.getId(), "nueva", "opcion_multiple", 1, 1));
+        assertThat(respuesta.correcto()).isTrue();
+    }
+
+    @Test
     void responderConTipoPreguntaQueNoCoincideConElAlmacenadoEsConflicto() {
         Usuario usuario = usuarioRepository.save(new Usuario("firebase-uid-tipo-mismatch", "tipo-mismatch@example.com"));
         Documento documento = documentoRepository.save(new Documento(usuario, "Doc", EstadoDocumento.LISTO));

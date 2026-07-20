@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useEffect, useMemo, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, TextoFuenteExpiradoError } from '../lib/api'
 import { useMapaDocumento } from '../hooks/useMapaDocumento'
+import { useDocumento } from '../hooks/useDocumento'
 import { ArbolSecciones } from '../components/ArbolSecciones'
 import { SelectorProfundidad } from '../components/SelectorProfundidad'
+import { BarraProgreso } from '../components/BarraProgreso'
 import { NIVELES_INCLUIDOS_POR_PROFUNDIDAD } from '../lib/profundidad'
 
 const MINUTOS_POR_UNIDAD = 1.5
@@ -69,7 +71,9 @@ function unidadIdsDeSecciones(seccionIds, secciones, nivelesIncluidos) {
 export function SeleccionSecciones() {
   const { id: documentoId } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const mapa = useMapaDocumento(documentoId)
+  const documento = useDocumento(documentoId)
   const [seleccionadas, setSeleccionadas] = useState(new Set())
   const [profundidad, setProfundidad] = useState('esencial')
   const [errorTextoExpirado, setErrorTextoExpirado] = useState(false)
@@ -88,18 +92,32 @@ export function SeleccionSecciones() {
   }, [seccionesBase, seccionesPorDependencia, secciones, profundidad])
   const minutosEstimados = Math.round(unidadIds.length * MINUTOS_POR_UNIDAD)
 
+  // POST /generar dispara la Pasada B en segundo plano y responde antes de
+  // que termine (documento.estado sigue en "generando") - navegar apenas
+  // responde el POST llevaba a la pantalla de juego a pedir GET /sesion
+  // contra un documento todavia no listo, que el backend rechaza con 409
+  // (problema real detectado probando: "no debiera pasar eso"). En vez de
+  // navegar en el onSuccess del POST, se espera a que el polling de
+  // useDocumento (mismo mecanismo que ya usa Subir.jsx para "procesando")
+  // confirme el estado "listo".
   const generar = useMutation({
     mutationFn: () => api(`/api/documentos/${documentoId}/generar`, {
       method: 'POST',
       body: JSON.stringify({ unidad_ids: unidadIds })
     }),
-    onSuccess: () => navigate(`/documentos/${documentoId}/jugar`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['documento', documentoId] }),
     onError: (error) => {
       if (error instanceof TextoFuenteExpiradoError) {
         setErrorTextoExpirado(true)
       }
     }
   })
+
+  useEffect(() => {
+    if (generar.isSuccess && documento.data?.estado === 'listo') {
+      navigate(`/documentos/${documentoId}/jugar`)
+    }
+  }, [generar.isSuccess, documento.data?.estado, documentoId, navigate])
 
   function alternarSeccion(seccionId) {
     setSeleccionadas((actual) => {
@@ -143,11 +161,18 @@ export function SeleccionSecciones() {
         <p>
           {unidadIds.length} unidades seleccionadas — ~{minutosEstimados} min
         </p>
-        <button type="button" disabled={unidadIds.length === 0 || generar.isPending} onClick={() => generar.mutate()}>
+        <button
+          type="button"
+          disabled={unidadIds.length === 0 || generar.isPending || generar.isSuccess}
+          onClick={() => generar.mutate()}
+        >
           Empezar
         </button>
       </div>
 
+      {generar.isSuccess && documento.data?.estado !== 'listo' && (
+        <BarraProgreso texto="Generando contenido…" />
+      )}
       {generar.isError && !errorTextoExpirado && <p role="alert">No se pudo iniciar la generación.</p>}
     </main>
   )

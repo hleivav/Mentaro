@@ -250,10 +250,17 @@ public class SesionService {
     }
 
     // Nunca mandar al frontend el campo que revela la respuesta correcta -
-    // cual sea ese campo depende del tipo de pregunta.
+    // cual sea ese campo depende del tipo de pregunta. "tipo" se fuerza
+    // explicito (no solo se lee) porque el contenido legado sin ese campo
+    // (ver tipoDe) nunca lo tenia guardado - sin esto, el frontend recibia
+    // una pregunta sin tipo, mandaba tipo_pregunta=undefined al responder,
+    // y el backend lo rechazaba con 400 por @NotBlank (bug real detectado
+    // probando con un documento generado antes de este campo existir).
     private Map<String, Object> redactar(Map<String, Object> pregunta) {
+        String tipo = tipoDe(pregunta);
         Map<String, Object> redactada = new LinkedHashMap<>(pregunta);
-        redactada.remove(campoRespuestaCorrecta(tipoDe(pregunta)));
+        redactada.put("tipo", tipo);
+        redactada.remove(campoRespuestaCorrecta(tipo));
         return redactada;
     }
 
@@ -282,12 +289,15 @@ public class SesionService {
         }
     }
 
+    // Contenido generado ANTES de que existiera el campo "tipo" (ver
+    // mecanicas-respuesta.md) nunca lo tiene guardado - pero esas preguntas
+    // siempre tenian la forma de opcion_multiple, porque era el unico tipo
+    // que existia en ese momento. Default por compatibilidad hacia atras en
+    // vez de reventar: documentos ya generados antes de este cambio siguen
+    // siendo jugables sin tener que regenerarlos.
     private String tipoDe(Map<String, Object> pregunta) {
-        String tipo = (String) pregunta.get("tipo");
-        if (tipo == null) {
-            throw new IllegalStateException("La pregunta almacenada no tiene campo 'tipo'");
-        }
-        return tipo;
+        Object tipo = pregunta.get("tipo");
+        return tipo != null ? (String) tipo : "opcion_multiple";
     }
 
     private String campoRespuestaCorrecta(String tipo) {

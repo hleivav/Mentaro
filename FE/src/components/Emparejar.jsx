@@ -10,8 +10,14 @@ import { ImagenPregunta } from './ImagenPregunta'
 export function Emparejar({ pregunta, onResponder, deshabilitado, retroalimentacion, documentoId }) {
   const [pares, setPares] = useState([])
   const [izquierdaActiva, setIzquierdaActiva] = useState(null)
+  const [enviado, setEnviado] = useState(false)
 
-  const bloqueado = deshabilitado || Boolean(retroalimentacion)
+  // "enviado" (estado propio), no "retroalimentacion" (prop del padre) -
+  // ver el mismo comentario en OrdenarCronologico.jsx: Juego.jsx no limpia
+  // retroalimentacion entre intentos a proposito, y usar ese valor viejo
+  // aca dejaba el componente bloqueado sin boton "Comprobar" apenas se
+  // remontaba para el segundo intento (bug real: sin forma de avanzar).
+  const bloqueado = deshabilitado || enviado
   const completo = pares.length === pregunta.columna_izquierda.length
 
   function indiceDerechaDe(indiceIzquierda) {
@@ -46,10 +52,11 @@ export function Emparejar({ pregunta, onResponder, deshabilitado, retroalimentac
 
   function comprobar() {
     if (!completo || bloqueado) return
+    setEnviado(true)
     onResponder(pares)
   }
 
-  const claseRetro = retroalimentacion
+  const claseRetro = enviado && retroalimentacion
     ? retroalimentacion.correcto ? 'emparejar--correcta' : 'emparejar--incorrecta'
     : ''
 
@@ -99,13 +106,13 @@ export function Emparejar({ pregunta, onResponder, deshabilitado, retroalimentac
         </ul>
       </div>
 
-      {retroalimentacion && (
+      {enviado && retroalimentacion && (
         <p className={retroalimentacion.correcto ? 'emparejar__retro--correcta' : 'emparejar__retro--incorrecta'}>
           {retroalimentacion.correcto ? '¡Correcto!' : 'No es así'}
         </p>
       )}
 
-      {!retroalimentacion && (
+      {!enviado && (
         <button type="button" className="secundario" disabled={!completo || bloqueado} onClick={comprobar}>
           Comprobar parejas
         </button>

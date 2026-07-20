@@ -2,6 +2,19 @@ import { getAuth } from 'firebase/auth'
 
 export class TextoFuenteExpiradoError extends Error {}
 
+// El backend manda el motivo real del error en el campo "message" del
+// cuerpo (ver server.error.include-message en application.yml). Sin esto
+// solo se podia mostrar el codigo de estado, y el motivo (ej. "PDF sin
+// capa de texto") quedaba invisible salvo yendo a mirar la pestaña
+// Network a mano - problema real detectado probando.
+function mensajeDeError(textoBody) {
+  try {
+    return JSON.parse(textoBody).message || undefined
+  } catch {
+    return undefined
+  }
+}
+
 // FormData (subida de archivos) fija su propio Content-Type con boundary -
 // si lo forzamos a application/json el multipart llega roto al backend.
 function pedir(path, options, token) {
@@ -35,7 +48,7 @@ export async function api(path, options = {}) {
     // nuevo, nunca reintentar silenciosamente.
     throw new TextoFuenteExpiradoError()
   }
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  if (!res.ok) throw new Error(mensajeDeError(await res.text()) ?? `API error: ${res.status}`)
   if (res.status === 204) return null
   return res.json()
 }
@@ -50,7 +63,7 @@ export async function apiBlob(path) {
     res = await pedir(path, {}, await getAuth().currentUser.getIdToken(true))
   }
 
-  if (!res.ok) throw new Error(`API error: ${res.status}`)
+  if (!res.ok) throw new Error(mensajeDeError(await res.text()) ?? `API error: ${res.status}`)
   return res.blob()
 }
 
@@ -71,7 +84,7 @@ export async function subirConProgreso(path, formData, onProgreso) {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(xhr.status === 204 ? null : JSON.parse(xhr.responseText))
       } else {
-        reject(new Error(`API error: ${xhr.status}`))
+        reject(new Error(mensajeDeError(xhr.responseText) ?? `API error: ${xhr.status}`))
       }
     }
     xhr.onerror = () => reject(new Error('Error de red al subir el archivo'))

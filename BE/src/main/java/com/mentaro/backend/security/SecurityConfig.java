@@ -39,6 +39,15 @@ public class SecurityConfig {
                         // de que MVC/CORS puedan responderlo).
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/health").permitAll()
+                        // Sin esto, una excepcion no capturada en cualquier
+                        // controller (ej. un IllegalStateException) llega a
+                        // Boot como un forward interno a /error - que "anyRequest
+                        // .authenticated()" tambien exige autenticar, y termina
+                        // devolviendo 401 en vez del 500 real. Enmascara
+                        // cualquier bug de backend como si fuera un problema de
+                        // sesion/token (confirmado: asi paso con un error real
+                        // de datos, visible en el navegador solo como 401).
+                        .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         (request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))

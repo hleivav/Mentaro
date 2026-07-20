@@ -10,9 +10,18 @@ import { ImagenPregunta } from './ImagenPregunta'
 // una lista de esos mismos indices en la secuencia real.
 export function OrdenarCronologico({ pregunta, onResponder, deshabilitado, retroalimentacion, documentoId }) {
   const [seleccionados, setSeleccionados] = useState([])
+  const [enviado, setEnviado] = useState(false)
 
   const completo = seleccionados.length === pregunta.items.length
-  const bloqueado = deshabilitado || Boolean(retroalimentacion)
+  // "enviado" (estado propio), no "retroalimentacion" (prop del padre) - a
+  // proposito Juego.jsx NO limpia retroalimentacion entre el primer y
+  // segundo intento (para poder seguir mostrando "no es asi" bajo la
+  // alternativa incorrecta en PreguntaOpcionMultiple). Ese mismo valor
+  // viejo, sin embargo, seguia bloqueando este componente entero apenas se
+  // remontaba para el segundo intento (key={intentoNumero} en Juego.jsx) -
+  // quedaba sin boton "Comprobar" y sin forma de avanzar (bug real
+  // reportado jugando: "no puedo hacer nada para avanzar").
+  const bloqueado = deshabilitado || enviado
 
   function agregar(indice) {
     if (bloqueado || seleccionados.includes(indice)) return
@@ -26,10 +35,11 @@ export function OrdenarCronologico({ pregunta, onResponder, deshabilitado, retro
 
   function comprobar() {
     if (!completo || bloqueado) return
+    setEnviado(true)
     onResponder(seleccionados)
   }
 
-  const clase = retroalimentacion
+  const clase = enviado && retroalimentacion
     ? retroalimentacion.correcto ? 'ordenar-cronologico__secuencia--correcta' : 'ordenar-cronologico__secuencia--incorrecta'
     : ''
 
@@ -49,7 +59,7 @@ export function OrdenarCronologico({ pregunta, onResponder, deshabilitado, retro
         ))}
       </ol>
 
-      {retroalimentacion && (
+      {enviado && retroalimentacion && (
         <p className={retroalimentacion.correcto ? 'ordenar-cronologico__retro--correcta' : 'ordenar-cronologico__retro--incorrecta'}>
           {retroalimentacion.correcto ? '¡Correcto!' : 'No es así'}
         </p>
@@ -67,7 +77,7 @@ export function OrdenarCronologico({ pregunta, onResponder, deshabilitado, retro
         )}
       </ul>
 
-      {!retroalimentacion && (
+      {!enviado && (
         <button type="button" className="secundario" disabled={!completo || bloqueado} onClick={comprobar}>
           Comprobar orden
         </button>

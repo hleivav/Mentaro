@@ -97,7 +97,7 @@ export function Subir() {
         </>
       )}
 
-      {subir.isError && <p role="alert">No se pudo subir el documento.</p>}
+      {subir.isError && <p role="alert">{subir.error.message}</p>}
     </main>
   )
 }

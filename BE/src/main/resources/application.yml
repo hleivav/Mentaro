@@ -33,6 +33,12 @@ spring:
 
 server:
   port: ${PORT:8080}
+  error:
+    # Por defecto Boot oculta el mensaje de la excepcion en la respuesta
+    # (solo deja status/error/path) - sin esto, un ResponseStatusException
+    # con un motivo claro (ej. "PDF sin capa de texto") no se puede ver sin
+    # ir a buscar el log del backend a mano.
+    include-message: always
 
 app:
   cors:
